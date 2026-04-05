@@ -52,7 +52,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-56 pb-20 md:pb-0">
+      <main className="flex-1 md:ml-56 pb-20 md:pb-0 overflow-x-hidden">
         <Outlet />
       </main>
 

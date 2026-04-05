@@ -438,18 +438,18 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
 
       <div className="space-y-6">
         {/* API Key Section */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Anthropic API Key</h2>
           <p className="text-sm text-gray-500 mb-3">
             Required for AI-powered match logging. Your key is stored securely in your account.
           </p>
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
+          <div className="space-y-2">
+            <div className="relative">
               <input
                 type={showApiKey ? 'text' : 'password'}
                 value={settings.anthropic_api_key}
@@ -461,6 +461,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setShowApiKey(!showApiKey)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600"
+                aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
               >
                 {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -468,9 +469,9 @@ export default function SettingsPage() {
             <button
               onClick={testApiKey}
               disabled={testingKey}
-              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
-              {testingKey ? <Loader2 size={16} className="animate-spin" /> : 'Test Connection'}
+              {testingKey ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Test Connection'}
             </button>
           </div>
           {testResult && (
@@ -481,7 +482,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Default Surface */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Default Surface</h2>
           <p className="text-sm text-gray-500 mb-3">Used when surface isn't specified in freeform input.</p>
           <div className="flex flex-wrap gap-2">
@@ -502,7 +503,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Default Match Type */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Default Match Type</h2>
           <p className="text-sm text-gray-500 mb-3">Used when match type isn't specified in freeform input.</p>
           <div className="flex flex-wrap gap-2">
@@ -523,7 +524,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Saved Locations */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Saved Locations</h2>
           <p className="text-sm text-gray-500 mb-3">Quick-select locations when logging matches.</p>
           <div className="flex gap-2 mb-3">
@@ -562,7 +563,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Leagues & Tournaments */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Leagues & Tournaments</h2>
           <p className="text-sm text-gray-500 mb-3">Manage your leagues and tournaments. New ones are auto-created when logging matches too.</p>
           <div className="flex gap-2 mb-3">
@@ -649,7 +650,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Goals */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Target size={18} className="text-green-600" />
@@ -674,7 +675,7 @@ export default function SettingsPage() {
               <h3 className="text-sm font-semibold text-gray-700">
                 {editingGoalId ? 'Edit Goal' : 'New Goal'}
               </h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Target Win Rate</label>
                   <div className="flex items-center gap-2">
@@ -697,11 +698,11 @@ export default function SettingsPage() {
                     max={2030}
                     value={goalForm.year}
                     onChange={e => setGoalForm(prev => ({ ...prev, year: Number(e.target.value) }))}
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full sm:w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Match Type (optional)</label>
                   <select
@@ -824,7 +825,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Custom Tags */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Tag size={18} className="text-green-600" />
@@ -915,7 +916,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Export / Import */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <div className="flex items-center gap-2 mb-3">
             <Download size={18} className="text-green-600" />
             <h2 className="text-base font-semibold text-gray-900">Export & Import</h2>
@@ -926,7 +927,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Export</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={handleExportJSON}
                   disabled={exporting}
@@ -971,7 +972,7 @@ export default function SettingsPage() {
         )}
 
         {/* Sign Out */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Account</h2>
           <p className="text-sm text-gray-500 mb-3">Signed in as {user?.email}</p>
           <button
