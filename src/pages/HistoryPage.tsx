@@ -83,7 +83,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl overflow-x-hidden">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Match History</h1>
         <button
@@ -230,7 +230,7 @@ function MatchCard({ match, onClick }: { match: MatchWithDetails; onClick: () =>
         </div>
 
         {/* Score + result */}
-        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0 max-w-[40%]">
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
             match.result === 'win' ? 'bg-green-100 text-green-700' :
             match.result === 'walkover' ? 'bg-blue-100 text-blue-700' :
@@ -238,7 +238,7 @@ function MatchCard({ match, onClick }: { match: MatchWithDetails; onClick: () =>
           }`}>
             {match.result === 'win' ? 'W' : match.result === 'walkover' ? 'W/O' : 'L'}
           </span>
-          <span className="text-sm font-mono text-gray-700">{scoreStr}</span>
+          <span className="text-sm font-mono text-gray-700 text-right">{scoreStr}</span>
         </div>
       </div>
     </button>

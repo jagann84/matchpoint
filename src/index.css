@@ -11,6 +11,10 @@
   --color-blue-600: #2563eb;
 }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);

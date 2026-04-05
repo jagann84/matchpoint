@@ -258,7 +258,7 @@ export default function LogMatchPage() {
   if (pendingMatches.length > 0) {
     const match = pendingMatches[currentConfirmIdx]
     return (
-      <div className="p-4 md:p-8 max-w-2xl">
+      <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
         <ConfirmationCard
           match={match}
           index={currentConfirmIdx}
@@ -275,7 +275,7 @@ export default function LogMatchPage() {
   // Manual form
   if (showManual) {
     return (
-      <div className="p-4 md:p-8 max-w-2xl">
+      <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
         <ManualForm
           form={manualForm}
           setForm={setManualForm}
@@ -292,7 +292,7 @@ export default function LogMatchPage() {
 
   // Freeform input
   return (
-    <div className="p-4 md:p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Log Match</h1>
       <p className="text-sm text-gray-500 mb-4">
         Describe your match and we'll parse it automatically.
