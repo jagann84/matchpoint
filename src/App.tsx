@@ -1,21 +1,24 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ToastContainer } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import AppLayout from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import LogMatchPage from './pages/LogMatchPage'
-import HistoryPage from './pages/HistoryPage'
-import PlayersPage from './pages/PlayersPage'
-import SettingsPage from './pages/SettingsPage'
-import MatchDetailPage from './pages/MatchDetailPage'
-import HeadToHeadPage from './pages/HeadToHeadPage'
-import PartnerStatsPage from './pages/PartnerStatsPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import NotFoundPage from './pages/NotFoundPage'
+import OfflineBanner from './components/OfflineBanner'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Analytics } from '@vercel/analytics/react'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const LogMatchPage = lazy(() => import('./pages/LogMatchPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const MatchDetailPage = lazy(() => import('./pages/MatchDetailPage'))
+const PlayersPage = lazy(() => import('./pages/PlayersPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const HeadToHeadPage = lazy(() => import('./pages/HeadToHeadPage'))
+const PartnerStatsPage = lazy(() => import('./pages/PartnerStatsPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -55,6 +58,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+      </div>
+    }>
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -86,6 +94,7 @@ function AppRoutes() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
+    </Suspense>
   )
 }
 
@@ -95,6 +104,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <ToastContainer />
+          <OfflineBanner />
           <SpeedInsights />
           <Analytics />
           <AppRoutes />

@@ -5,9 +5,11 @@ import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQuer
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line,
-} from 'recharts'
+import RecordSummary from '../components/stats/RecordSummary'
+import BreakdownList from '../components/stats/BreakdownList'
+import MatchList from '../components/stats/MatchList'
+import TrendChart from '../components/stats/TrendChart'
+import { useMatchBreakdown } from '../hooks/useMatchBreakdown'
 
 export default function HeadToHeadPage() {
   const { id } = useParams<{ id: string }>()
@@ -52,63 +54,16 @@ export default function HeadToHeadPage() {
     return { wins, losses, total, winRate }
   }, [opponentMatches])
 
-  // Breakdown by surface
-  const bySurface = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of opponentMatches) {
-      if (!map.has(m.surface)) map.set(m.surface, { wins: 0, total: 0 })
-      const e = map.get(m.surface)!
-      e.total++
-      if (m.result === 'win' || m.result === 'walkover') e.wins++
-    }
-    return [...map.entries()].map(([name, { wins, total }]) => ({
-      name: name.replace('-', ' '), winRate: Math.round((wins / total) * 100), total,
-    }))
-  }, [opponentMatches])
-
-  // Breakdown by match type
-  const byMatchType = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of opponentMatches) {
-      if (!map.has(m.match_type)) map.set(m.match_type, { wins: 0, total: 0 })
-      const e = map.get(m.match_type)!
-      e.total++
-      if (m.result === 'win' || m.result === 'walkover') e.wins++
-    }
-    return [...map.entries()].map(([name, { wins, total }]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1), winRate: Math.round((wins / total) * 100), total,
-    }))
-  }, [opponentMatches])
-
-  // Breakdown by league
-  const byLeague = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of opponentMatches) {
-      if (!m.league_name) continue
-      if (!map.has(m.league_name)) map.set(m.league_name, { wins: 0, total: 0 })
-      const e = map.get(m.league_name)!
-      e.total++
-      if (m.result === 'win' || m.result === 'walkover') e.wins++
-    }
-    return [...map.entries()].map(([name, { wins, total }]) => ({
-      name, winRate: Math.round((wins / total) * 100), total,
-    }))
-  }, [opponentMatches])
+  const { bySurface, byMatchType, byLeague } = useMatchBreakdown(opponentMatches)
 
   // Trend (last 10 matches, oldest first for the chart)
   const trendData = useMemo(() => {
     const last10 = opponentMatches.slice(0, 10).reverse()
-    let cumWins = 0
-    let cumTotal = 0
-    return last10.map(m => {
-      cumTotal++
-      if (m.result === 'win' || m.result === 'walkover') cumWins++
-      return {
-        label: format(new Date(m.date), 'M/d'),
-        result: m.result === 'win' || m.result === 'walkover' ? 1 : 0,
-        winRate: Math.round((cumWins / cumTotal) * 100),
-      }
-    })
+    return last10.map((m, i) => ({
+      match: i + 1,
+      result: (m.result === 'win' || m.result === 'walkover' ? 'W' : 'L') as 'W' | 'L',
+      label: format(new Date(m.date), 'M/d'),
+    }))
   }, [opponentMatches])
 
   // Partner stats
@@ -137,14 +92,14 @@ export default function HeadToHeadPage() {
   if (loading) {
     return (
       <div className="p-4 md:p-8 flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="animate-spin text-green-600" size={32} />
+        <Loader2 className="animate-spin text-green-700" size={32} />
       </div>
     )
   }
 
   return (
     <div className="p-4 md:p-8 max-w-3xl">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 focus:outline-none focus-visible:text-gray-700">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-700 rounded">
         <ArrowLeft size={16} /> Back
       </button>
 
@@ -152,51 +107,20 @@ export default function HeadToHeadPage() {
       <p className="text-sm text-gray-500 mb-4">Head-to-head record</p>
 
       {/* Main H2H record */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase mb-1">Wins</p>
-          <p className="text-2xl font-bold text-green-600">{oppStats.wins}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase mb-1">Win Rate</p>
-          <p className={`text-2xl font-bold ${oppStats.winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
-            {oppStats.winRate}%
-          </p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase mb-1">Losses</p>
-          <p className="text-2xl font-bold text-red-500">{oppStats.losses}</p>
-        </div>
-      </div>
+      <RecordSummary wins={oppStats.wins} losses={oppStats.losses} winRate={oppStats.winRate} />
 
       {/* Trend chart */}
-      {trendData.length >= 2 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Win Rate Trend (Last {trendData.length} Matches)</h2>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={trendData}>
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-              <Tooltip formatter={(v: number) => [`${v}%`, 'Win Rate']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              <Line type="monotone" dataKey="winRate" stroke="#16a34a" strokeWidth={2} dot={{ fill: '#16a34a', r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <TrendChart data={trendData} title={`Win Rate Trend (Last ${trendData.length} Matches)`} />
 
       {/* Breakdowns */}
       <div className="grid md:grid-cols-2 gap-4 mb-4">
-        {bySurface.length > 0 && (
-          <BreakdownCard title="By Surface" data={bySurface} />
-        )}
-        {byMatchType.length > 0 && (
-          <BreakdownCard title="By Match Type" data={byMatchType} />
-        )}
+        <BreakdownList title="By Surface" data={bySurface} />
+        <BreakdownList title="By Match Type" data={byMatchType} />
       </div>
 
       {byLeague.length > 0 && (
         <div className="mb-4">
-          <BreakdownCard title="By League" data={byLeague} />
+          <BreakdownList title="By League" data={byLeague} />
         </div>
       )}
 
@@ -211,7 +135,7 @@ export default function HeadToHeadPage() {
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-500">Win Rate</p>
-              <p className={`text-sm font-bold ${partnerStats.winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+              <p className={`text-sm font-bold ${partnerStats.winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                 {partnerStats.winRate}%
               </p>
             </div>
@@ -241,59 +165,7 @@ export default function HeadToHeadPage() {
         <h2 className="text-sm font-semibold text-gray-900 mb-3">
           All Matches vs {playerName} ({opponentMatches.length})
         </h2>
-        <div className="space-y-2">
-          {opponentMatches.map(m => (
-            <button
-              key={m.id}
-              onClick={() => navigate(`/history/${m.id}`)}
-              className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`text-xs font-bold w-5 ${
-                  m.result === 'win' ? 'text-green-600' : m.result === 'walkover' ? 'text-blue-600' : 'text-red-500'
-                }`}>
-                  {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : 'L'}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {format(new Date(m.date), 'MMM d, yyyy')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs font-mono text-gray-700">
-                  {m.result === 'walkover' ? 'W/O' : m.sets.map(s => `${s.my_games}-${s.opponent_games}`).join(', ')}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  m.surface === 'clay' ? 'bg-orange-100 text-orange-700' :
-                  m.surface === 'grass' ? 'bg-emerald-100 text-emerald-700' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                  {m.surface.replace('-', ' ')}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function BreakdownCard({ title, data }: { title: string; data: { name: string; winRate: number; total: number }[] }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">{title}</h2>
-      <div className="space-y-2">
-        {data.map(d => (
-          <div key={d.name} className="flex items-center justify-between">
-            <span className="text-sm text-gray-700 capitalize">{d.name}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{d.total} match{d.total !== 1 ? 'es' : ''}</span>
-              <span className={`text-xs font-semibold ${d.winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
-                {d.winRate}%
-              </span>
-            </div>
-          </div>
-        ))}
+        <MatchList matches={opponentMatches} onMatchClick={(id) => navigate(`/history/${id}`)} />
       </div>
     </div>
   )

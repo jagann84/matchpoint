@@ -6,12 +6,20 @@ interface ToastData {
   message: string
   type: 'success' | 'error'
   matchId?: string
+  onAction?: () => void
+  actionLabel?: string
 }
 
 let addToastFn: ((toast: Omit<ToastData, 'id'>) => void) | null = null
 
-export function showToast(message: string, type: 'success' | 'error' = 'success', matchId?: string) {
-  addToastFn?.({ message, type, matchId })
+export function showToast(
+  message: string,
+  type: 'success' | 'error' = 'success',
+  matchId?: string,
+  onAction?: () => void,
+  actionLabel?: string,
+) {
+  addToastFn?.({ message, type, matchId, onAction, actionLabel })
 }
 
 export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => void }) {
@@ -21,7 +29,8 @@ export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => 
     addToastFn = (toast) => {
       const id = Math.random().toString(36).slice(2)
       setToasts(prev => [...prev, { ...toast, id }])
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000)
+      const delay = toast.onAction ? 6000 : 4000
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), delay)
     }
     return () => { addToastFn = null }
   }, [])
@@ -46,6 +55,18 @@ export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => 
             : <AlertCircle size={18} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
           }
           <span className="flex-1">{toast.message}</span>
+          {toast.onAction && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toast.onAction?.()
+                setToasts(prev => prev.filter(t => t.id !== toast.id))
+              }}
+              className="flex-shrink-0 px-2 py-0.5 text-green-700 bg-white rounded font-medium text-xs hover:bg-green-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {toast.actionLabel || 'Undo'}
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); setToasts(prev => prev.filter(t => t.id !== toast.id)) }}
             className="flex-shrink-0 mt-0.5 opacity-70 hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"

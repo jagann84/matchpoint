@@ -25,64 +25,105 @@ export interface MatchWithDetails {
   tags: string[]
 }
 
-export async function fetchMatchesWithDetails(userId: string): Promise<MatchWithDetails[]> {
-  // Fetch all data in parallel
-  const [matchesRes, opponentsRes, setsRes, tagsRes, playersRes, leaguesRes] = await Promise.all([
-    supabase.from('matches').select('*').eq('user_id', userId).order('date', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from('match_opponents').select('match_id, player_id'),
-    supabase.from('match_sets').select('match_id, set_number, my_games, opponent_games, is_tiebreak, tiebreak_score').order('set_number'),
-    supabase.from('match_tags').select('match_id, tag_id'),
-    supabase.from('players').select('id, name').eq('user_id', userId),
-    supabase.from('leagues').select('id, name').eq('user_id', userId),
-  ])
+const MATCH_SELECT = `
+  *,
+  league:leagues!matches_league_id_fkey(name),
+  partner:players!matches_partner_id_fkey(name),
+  match_opponents(player_id, player:players!match_opponents_player_id_fkey(id, name)),
+  match_sets(set_number, my_games, opponent_games, is_tiebreak, tiebreak_score),
+  match_tags(tag_id)
+`
 
-  const matches = matchesRes.data || []
-  const opponents = opponentsRes.data || []
-  const sets = setsRes.data || []
-  const tags = tagsRes.data || []
-  const playerMap = new Map((playersRes.data || []).map(p => [p.id, p.name]))
-  const leagueMap = new Map((leaguesRes.data || []).map(l => [l.id, l.name]))
-
-  return matches.map(m => ({
-    ...m,
-    league_name: m.league_id ? leagueMap.get(m.league_id) || null : null,
-    partner_name: m.partner_id ? playerMap.get(m.partner_id) || null : null,
-    opponents: opponents
-      .filter(o => o.match_id === m.id)
-      .map(o => ({ id: o.player_id, name: playerMap.get(o.player_id) || 'Unknown' })),
-    sets: sets
-      .filter(s => s.match_id === m.id)
-      .map(s => ({ set_number: s.set_number, my_games: s.my_games, opponent_games: s.opponent_games, is_tiebreak: s.is_tiebreak, tiebreak_score: s.tiebreak_score })),
-    tags: tags.filter(t => t.match_id === m.id).map(t => t.tag_id),
-  }))
-}
-
-export async function fetchSingleMatch(matchId: string): Promise<MatchWithDetails | null> {
-  const { data: m } = await supabase.from('matches').select('*').eq('id', matchId).single()
-  if (!m) return null
-
-  const [opponentsRes, setsRes, tagsRes, playersRes, leaguesRes] = await Promise.all([
-    supabase.from('match_opponents').select('player_id').eq('match_id', matchId),
-    supabase.from('match_sets').select('set_number, my_games, opponent_games, is_tiebreak, tiebreak_score').eq('match_id', matchId).order('set_number'),
-    supabase.from('match_tags').select('tag_id').eq('match_id', matchId),
-    supabase.from('players').select('id, name').eq('user_id', m.user_id),
-    supabase.from('leagues').select('id, name').eq('user_id', m.user_id),
-  ])
-
-  const playerMap = new Map((playersRes.data || []).map(p => [p.id, p.name]))
-  const leagueMap = new Map((leaguesRes.data || []).map(l => [l.id, l.name]))
-
+function transformMatch(m: any): MatchWithDetails {
   return {
-    ...m,
-    league_name: m.league_id ? leagueMap.get(m.league_id) || null : null,
-    partner_name: m.partner_id ? playerMap.get(m.partner_id) || null : null,
-    opponents: (opponentsRes.data || []).map(o => ({ id: o.player_id, name: playerMap.get(o.player_id) || 'Unknown' })),
-    sets: (setsRes.data || []).map(s => ({ set_number: s.set_number, my_games: s.my_games, opponent_games: s.opponent_games, is_tiebreak: s.is_tiebreak, tiebreak_score: s.tiebreak_score })),
-    tags: (tagsRes.data || []).map(t => t.tag_id),
+    id: m.id,
+    date: m.date,
+    match_type: m.match_type,
+    format: m.format,
+    surface: m.surface,
+    location: m.location,
+    league_id: m.league_id,
+    league_name: m.league?.name || null,
+    result: m.result,
+    is_competitive: m.is_competitive,
+    is_pro_set: m.is_pro_set,
+    third_set_tiebreak: m.third_set_tiebreak,
+    retired: m.retired,
+    notes: m.notes,
+    raw_input: m.raw_input,
+    partner_id: m.partner_id,
+    partner_name: m.partner?.name || null,
+    created_at: m.created_at,
+    updated_at: m.updated_at,
+    opponents: (m.match_opponents || []).map((o: any) => ({
+      id: o.player_id,
+      name: o.player?.name || 'Unknown',
+    })),
+    sets: (m.match_sets || [])
+      .sort((a: any, b: any) => a.set_number - b.set_number)
+      .map((s: any) => ({
+        set_number: s.set_number,
+        my_games: s.my_games,
+        opponent_games: s.opponent_games,
+        is_tiebreak: s.is_tiebreak,
+        tiebreak_score: s.tiebreak_score,
+      })),
+    tags: (m.match_tags || []).map((t: any) => t.tag_id),
   }
 }
 
+export async function fetchMatchesWithDetails(userId: string): Promise<MatchWithDetails[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+
+  return data.map(transformMatch)
+}
+
+export async function fetchMatchesPaginated(
+  userId: string,
+  offset: number = 0,
+  limit: number = 20,
+): Promise<{ matches: MatchWithDetails[]; total: number }> {
+  const { data, error, count } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT, { count: 'exact' })
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error || !data) return { matches: [], total: 0 }
+
+  return { matches: data.map(transformMatch), total: count || 0 }
+}
+
+export async function fetchSingleMatch(matchId: string): Promise<MatchWithDetails | null> {
+  const { data: m, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .eq('id', matchId)
+    .is('deleted_at', null)
+    .single()
+
+  if (error || !m) return null
+
+  return transformMatch(m)
+}
+
 export async function deleteMatch(matchId: string): Promise<boolean> {
-  const { error } = await supabase.from('matches').delete().eq('id', matchId)
+  const { error } = await supabase.rpc('delete_match_transaction', { p_match_id: matchId })
+  return !error
+}
+
+export async function restoreMatch(matchId: string): Promise<boolean> {
+  const { error } = await supabase.rpc('restore_match', { p_match_id: matchId })
   return !error
 }

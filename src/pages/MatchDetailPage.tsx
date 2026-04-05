@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchSingleMatch, deleteMatch, type MatchWithDetails } from '../lib/matchQueries'
+import { fetchSingleMatch, deleteMatch, restoreMatch, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { showToast } from '../components/Toast'
 import { format } from 'date-fns'
@@ -147,7 +147,15 @@ export default function MatchDetailPage() {
     if (!id) return
     const ok = await deleteMatch(id)
     if (ok) {
-      showToast('Match deleted', 'success')
+      showToast('Match deleted', 'success', undefined, async () => {
+        const restored = await restoreMatch(id)
+        if (restored) {
+          showToast('Match restored', 'success')
+          navigate(`/history/${id}`)
+        } else {
+          showToast('Failed to restore match', 'error')
+        }
+      }, 'Undo')
       navigate('/history', { replace: true })
     } else {
       showToast('Failed to delete match', 'error')

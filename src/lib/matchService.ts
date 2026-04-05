@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { ParsedMatch } from './anthropic'
+import { enqueueMatch, dequeueAll, removeFromQueue } from './offlineQueue'
 
 interface SaveMatchResult {
   matchId: string
@@ -43,6 +44,11 @@ export async function saveMatch(
     tags: parsed.tags,
   }
 
+  if (!navigator.onLine) {
+    await enqueueMatch(payload)
+    return { matchId: 'pending-' + Date.now(), newPlayers: [], newLeagues: [] }
+  }
+
   const { data, error } = await supabase.rpc('save_match_transaction', { payload })
 
   if (error || !data) {
@@ -54,6 +60,19 @@ export async function saveMatch(
     newPlayers: data.new_players ?? [],
     newLeagues: data.new_leagues ?? [],
   }
+}
+
+export async function syncPendingMatches(): Promise<number> {
+  const pending = await dequeueAll()
+  let synced = 0
+  for (const item of pending) {
+    const { error } = await supabase.rpc('save_match_transaction', { payload: item.payload })
+    if (!error) {
+      await removeFromQueue(item.id)
+      synced++
+    }
+  }
+  return synced
 }
 
 export async function checkDuplicate(

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchMatchesWithDetails, deleteMatch, type MatchWithDetails } from '../lib/matchQueries'
+import { fetchMatchesPaginated, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
@@ -8,11 +8,16 @@ import {
   Loader2, Filter, ChevronDown, ChevronUp, List, Search, X,
 } from 'lucide-react'
 
+const PAGE_SIZE = 20
+
 export default function HistoryPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [matches, setMatches] = useState<MatchWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -32,18 +37,31 @@ export default function HistoryPage() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [matchData, playersRes, leaguesRes] = await Promise.all([
-      fetchMatchesWithDetails(user.id),
+    const [paginatedResult, playersRes, leaguesRes] = await Promise.all([
+      fetchMatchesPaginated(user.id, 0, PAGE_SIZE),
       supabase.from('players').select('id, name').eq('user_id', user.id).order('name'),
       supabase.from('leagues').select('id, name').eq('user_id', user.id).order('name'),
     ])
-    setMatches(matchData)
+    setMatches(paginatedResult.matches)
+    setTotalCount(paginatedResult.total)
+    setHasMore(paginatedResult.matches.length < paginatedResult.total)
     if (playersRes.data) setPlayers(playersRes.data)
     if (leaguesRes.data) setLeagues(leaguesRes.data)
     setLoading(false)
   }, [user])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const loadMore = useCallback(async () => {
+    if (!user || loadingMore) return
+    setLoadingMore(true)
+    const result = await fetchMatchesPaginated(user.id, matches.length, PAGE_SIZE)
+    const updated = [...matches, ...result.matches]
+    setMatches(updated)
+    setTotalCount(result.total)
+    setHasMore(updated.length < result.total)
+    setLoadingMore(false)
+  }, [user, matches, loadingMore])
 
   const filtered = matches.filter(m => {
     if (filterResult && m.result !== filterResult) return false
@@ -176,14 +194,14 @@ export default function HistoryPage() {
       )}
 
       {/* Results count */}
-      {hasActiveFilters && (
-        <p className="text-sm text-gray-500 mb-3">
-          {filtered.length} match{filtered.length !== 1 ? 'es' : ''} found
-        </p>
-      )}
+      <p className="text-sm text-gray-500 mb-3">
+        {hasActiveFilters
+          ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''} found`
+          : `Showing ${matches.length} of ${totalCount} match${totalCount !== 1 ? 'es' : ''}`}
+      </p>
 
       {/* Match list */}
-      {matches.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
           <List className="mx-auto text-gray-300 mb-3" size={48} />
           <h3 className="text-base font-semibold text-gray-700 mb-1">No matches yet</h3>
@@ -205,6 +223,15 @@ export default function HistoryPage() {
           {filtered.map(match => (
             <MatchCard key={match.id} match={match} onClick={() => navigate(`/history/${match.id}`)} />
           ))}
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full py-3 mt-2 text-sm text-green-700 hover:text-green-800 font-medium bg-white rounded-xl shadow-sm border border-gray-100 hover:border-gray-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            >
+              {loadingMore ? 'Loading...' : `Load more matches`}
+            </button>
+          )}
         </div>
       )}
     </div>

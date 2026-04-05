@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_NAME && k !== 'matchpoint-api-v1').map((k) => caches.delete(k)))
     )
   )
   self.clients.claim()
@@ -35,7 +35,26 @@ self.addEventListener('fetch', (event) => {
   // Skip non-http(s) schemes (e.g. chrome-extension://)
   if (!request.url.startsWith('http')) return
 
-  // Skip Supabase and Anthropic API calls
+  // For Supabase REST GET requests: network-first with cache fallback
+  if (request.url.includes('supabase.co') && request.url.includes('/rest/') && request.method === 'GET') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open('matchpoint-api-v1').then(cache => cache.put(request, clone))
+          }
+          return response
+        })
+        .catch(() => caches.match(request).then(r => r || new Response('{"error":"offline"}', {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        })))
+    )
+    return
+  }
+
+  // Skip other Supabase and Anthropic API calls (auth, RPC, etc.)
   if (request.url.includes('supabase.co') || request.url.includes('anthropic.com')) return
 
   // Skip Google Fonts (they have their own caching)
