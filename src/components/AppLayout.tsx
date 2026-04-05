@@ -1,11 +1,12 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
-import { LayoutDashboard, PlusCircle, List, Users, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, List, Users, Settings, LogOut, Calendar } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/log-match', label: 'Log Match', icon: PlusCircle },
   { to: '/history', label: 'History', icon: List },
+  { to: '/calendar', label: 'Calendar', icon: Calendar },
   { to: '/players', label: 'Players', icon: Users },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

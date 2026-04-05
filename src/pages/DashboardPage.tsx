@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
-import { Loader2, TrendingUp, TrendingDown, Minus, Trophy, Target } from 'lucide-react'
+import { Loader2, TrendingUp, TrendingDown, Minus, Trophy, Target, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  LineChart, Line, ReferenceLine,
 } from 'recharts'
 
 type TimePeriod = 'all' | 'year' | 'month'
@@ -221,6 +222,76 @@ export default function DashboardPage() {
 
     return { target: goal.target_win_rate, current: currentRate, played: total, wins, year: goal.year, status }
   }, [goal, allMatches])
+
+  // Trend forecast — 4-week rolling windows with linear regression
+  const trendData = useMemo(() => {
+    if (allMatches.length < 5) return null
+
+    // Sort oldest first for chronological bucketing
+    const sorted = [...allMatches].reverse()
+    const firstDate = new Date(sorted[0].date)
+
+    // Bucket into 4-week windows
+    const windows: { week: number; label: string; wins: number; total: number }[] = []
+    for (const m of sorted) {
+      const daysSinceFirst = Math.floor((new Date(m.date).getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
+      const windowIndex = Math.floor(daysSinceFirst / 28)
+      if (!windows[windowIndex]) {
+        const windowStart = new Date(firstDate.getTime() + windowIndex * 28 * 24 * 60 * 60 * 1000)
+        windows[windowIndex] = { week: windowIndex, label: format(windowStart, 'MMM d'), wins: 0, total: 0 }
+      }
+      windows[windowIndex].total++
+      if (m.result === 'win' || m.result === 'walkover') windows[windowIndex].wins++
+    }
+
+    // Filter out empty windows and compute win rates
+    const points = windows
+      .filter(w => w && w.total >= 2)
+      .map(w => ({ ...w, winRate: Math.round((w.wins / w.total) * 100) }))
+
+    if (points.length < 3) return null
+
+    // Linear regression: y = mx + b
+    const n = points.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
+    for (let i = 0; i < n; i++) {
+      sumX += i
+      sumY += points[i].winRate
+      sumXY += i * points[i].winRate
+      sumX2 += i * i
+    }
+    const m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    const b = (sumY - m * sumX) / n
+
+    // Current win rate and projected
+    const currentRate = points[points.length - 1].winRate
+    const projectedWindows = 3 // ~3 months forward
+    const projectedRate = Math.round(Math.min(100, Math.max(0, m * (n - 1 + projectedWindows) + b)))
+
+    // Build chart data: actual + projected points
+    const chartData = points.map((p, i) => ({
+      label: p.label,
+      winRate: p.winRate,
+      trend: Math.round(m * i + b),
+      projected: undefined as number | undefined,
+    }))
+
+    // Add projected points
+    for (let i = 1; i <= projectedWindows; i++) {
+      const futureDate = new Date(firstDate.getTime() + (points[points.length - 1].week + i) * 28 * 24 * 60 * 60 * 1000)
+      chartData.push({
+        label: format(futureDate, 'MMM d'),
+        winRate: undefined as unknown as number,
+        trend: Math.round(m * (n - 1 + i) + b),
+        projected: Math.round(Math.min(100, Math.max(0, m * (n - 1 + i) + b))),
+      })
+    }
+
+    const improving = m > 0.5
+    const declining = m < -0.5
+
+    return { chartData, currentRate, projectedRate, improving, declining, slope: m }
+  }, [allMatches])
 
   // Recent 5
   const recentMatches = matches.slice(0, 5)
@@ -450,7 +521,7 @@ export default function DashboardPage() {
 
       {/* Year-over-year */}
       {yoyData && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">Year-over-Year Win Rate</h2>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={yoyData} barSize={40}>
@@ -467,6 +538,56 @@ export default function DashboardPage() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Trend forecast */}
+      {trendData && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">Win Rate Trend</h2>
+            <div className="flex items-center gap-1.5">
+              {trendData.improving ? (
+                <ArrowUpRight size={14} className="text-green-600" />
+              ) : trendData.declining ? (
+                <ArrowDownRight size={14} className="text-red-600" />
+              ) : null}
+              <span className={`text-xs font-medium ${
+                trendData.improving ? 'text-green-700' :
+                trendData.declining ? 'text-red-600' :
+                'text-gray-500'
+              }`}>
+                {trendData.improving ? 'Improving' : trendData.declining ? 'Declining' : 'Steady'}
+              </span>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={trendData.chartData}>
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+              <Tooltip
+                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                formatter={(value: number, name: string) => [
+                  `${value}%`,
+                  name === 'winRate' ? 'Actual' : name === 'trend' ? 'Trend' : 'Projected',
+                ]}
+              />
+              <ReferenceLine y={50} stroke="#e5e7eb" strokeDasharray="3 3" />
+              <Line type="monotone" dataKey="winRate" stroke="#16a34a" strokeWidth={2} dot={{ r: 3, fill: '#16a34a' }} connectNulls={false} />
+              <Line type="monotone" dataKey="trend" stroke="#9ca3af" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+              <Line type="monotone" dataKey="projected" stroke="#16a34a" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3, fill: '#fff', stroke: '#16a34a', strokeWidth: 2 }} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+            <span>Current: <span className="font-semibold text-gray-700">{trendData.currentRate}%</span></span>
+            <span>
+              Projected (~3 months): <span className={`font-semibold ${
+                trendData.projectedRate >= trendData.currentRate ? 'text-green-700' : 'text-red-600'
+              }`}>{trendData.projectedRate}%</span>
+            </span>
+          </div>
         </div>
       )}
     </div>

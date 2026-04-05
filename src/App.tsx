@@ -18,6 +18,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const HeadToHeadPage = lazy(() => import('./pages/HeadToHeadPage'))
 const PartnerStatsPage = lazy(() => import('./pages/PartnerStatsPage'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="/players" element={<PlayersPage />} />
         <Route path="/h2h/:id" element={<HeadToHeadPage />} />
         <Route path="/partner/:id" element={<PartnerStatsPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
