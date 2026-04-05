@@ -129,7 +129,7 @@ export default function HistoryPage() {
             )}
           </div>
           {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-xs text-green-600 hover:text-green-700 font-medium">
+            <button onClick={clearFilters} className="text-xs text-green-700 hover:text-green-800 font-medium">
               Clear all filters
             </button>
           )}

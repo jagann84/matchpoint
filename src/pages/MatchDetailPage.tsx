@@ -260,7 +260,7 @@ export default function MatchDetailPage() {
                 ))}
                 <button
                   onClick={addSet}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
+                  className="text-xs text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
                 >
                   <Plus size={12} /> Add set
                 </button>

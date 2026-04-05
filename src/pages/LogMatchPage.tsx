@@ -462,7 +462,7 @@ function ConfirmationCard({
               {match.sets.length < 3 && (
                 <button
                   onClick={() => update({ sets: [...match.sets, { myGames: 0, opponentGames: 0, isTiebreak: false, tiebreakScore: null }] })}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium"
+                  className="text-xs text-green-700 hover:text-green-800 font-medium"
                 >
                   + Add Set
                 </button>
@@ -824,7 +824,7 @@ function ManualForm({
               {form.sets.length < 3 && (
                 <button
                   onClick={() => update({ sets: [...form.sets, { myGames: 0, opponentGames: 0, isTiebreak: false, tiebreakScore: null }] })}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium"
+                  className="text-xs text-green-700 hover:text-green-800 font-medium"
                 >
                   + Add Set
                 </button>

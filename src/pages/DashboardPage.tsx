@@ -334,7 +334,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-900">Recent Matches</h2>
-            <button onClick={() => navigate('/history')} className="text-xs text-green-600 hover:text-green-700 font-medium focus:outline-none focus-visible:underline">View all</button>
+            <button onClick={() => navigate('/history')} className="text-xs text-green-700 hover:text-green-800 font-medium focus:outline-none focus-visible:underline">View all</button>
           </div>
           {recentMatches.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No matches in this period.</p>
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`text-xs font-bold w-5 ${
-                      m.result === 'win' ? 'text-green-600' : m.result === 'walkover' ? 'text-blue-600' : 'text-red-500'
+                      m.result === 'win' ? 'text-green-700' : m.result === 'walkover' ? 'text-blue-700' : 'text-red-600'
                     }`}>
                       {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : 'L'}
                     </span>
@@ -389,7 +389,7 @@ export default function DashboardPage() {
                     <span className="text-sm font-medium text-gray-800">{opp.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">{opp.wins}W-{opp.losses}L</span>
-                      <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                         {winRate}%
                       </span>
                     </div>
@@ -437,7 +437,7 @@ export default function DashboardPage() {
                   <span className="text-sm font-medium text-gray-800">{p.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">{p.wins}W-{p.losses}L</span>
-                    <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                       {winRate}%
                     </span>
                   </div>

@@ -162,7 +162,7 @@ export default function PartnerStatsPage() {
                     <span className="text-sm text-gray-700">{d.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">{d.total} match{d.total !== 1 ? 'es' : ''}</span>
-                      <span className={`text-xs font-semibold ${d.winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`text-xs font-semibold ${d.winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                         {d.winRate}%
                       </span>
                     </div>
@@ -189,7 +189,7 @@ export default function PartnerStatsPage() {
                       <span className="text-sm text-gray-700">{o.name}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500">{o.wins}W-{o.losses}L</span>
-                        <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+                        <span className={`text-xs font-semibold ${winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                           {winRate}%
                         </span>
                       </div>

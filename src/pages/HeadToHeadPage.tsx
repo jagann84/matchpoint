@@ -288,7 +288,7 @@ function BreakdownCard({ title, data }: { title: string; data: { name: string; w
             <span className="text-sm text-gray-700 capitalize">{d.name}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">{d.total} match{d.total !== 1 ? 'es' : ''}</span>
-              <span className={`text-xs font-semibold ${d.winRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`text-xs font-semibold ${d.winRate >= 50 ? 'text-green-700' : 'text-red-600'}`}>
                 {d.winRate}%
               </span>
             </div>
