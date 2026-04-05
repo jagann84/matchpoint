@@ -492,7 +492,7 @@ export default function SettingsPage() {
                 onClick={() => saveSettings({ default_surface: value })}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   settings.default_surface === value
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -513,7 +513,7 @@ export default function SettingsPage() {
                 onClick={() => saveSettings({ default_match_type: value })}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   settings.default_match_type === value
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -538,7 +538,7 @@ export default function SettingsPage() {
             />
             <button
               onClick={addLocation}
-              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              className="px-3 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors"
             >
               <Plus size={18} />
             </button>
@@ -585,7 +585,7 @@ export default function SettingsPage() {
             </select>
             <button
               onClick={addLeague}
-              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              className="px-3 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors"
             >
               <Plus size={18} />
             </button>
@@ -659,7 +659,7 @@ export default function SettingsPage() {
             {!showGoalForm && (
               <button
                 onClick={() => { resetGoalForm(); setShowGoalForm(true) }}
-                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Plus size={16} /> Add Goal
               </button>
@@ -751,7 +751,7 @@ export default function SettingsPage() {
                 <button
                   onClick={saveGoal}
                   disabled={goalForm.target_win_rate < 1 || goalForm.target_win_rate > 100}
-                  className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {editingGoalId ? 'Update Goal' : 'Create Goal'}
                 </button>
@@ -834,7 +834,7 @@ export default function SettingsPage() {
             {!showTagForm && (
               <button
                 onClick={() => setShowTagForm(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Plus size={16} /> Add Tag
               </button>
@@ -883,7 +883,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex gap-2 justify-end">
                 <button onClick={() => { setShowTagForm(false); setTagForm({ label: '', category: 'other', keywords: '' }) }} className="px-3 py-1.5 text-sm text-gray-600">Cancel</button>
-                <button onClick={addCustomTag} disabled={!tagForm.label.trim()} className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">Add Tag</button>
+                <button onClick={addCustomTag} disabled={!tagForm.label.trim()} className="px-4 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium disabled:opacity-50">Add Tag</button>
               </div>
             </div>
           )}

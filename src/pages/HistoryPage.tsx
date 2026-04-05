@@ -96,7 +96,7 @@ export default function HistoryPage() {
         >
           <Filter size={16} />
           Filters
-          {hasActiveFilters && <span className="w-2 h-2 bg-green-600 rounded-full" />}
+          {hasActiveFilters && <span className="w-2 h-2 bg-green-700 rounded-full" />}
           {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
@@ -151,7 +151,7 @@ export default function HistoryPage() {
           <p className="text-sm text-gray-500 mb-4">Log your first match to see it here.</p>
           <button
             onClick={() => navigate('/log-match')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
           >
             Log Match
           </button>

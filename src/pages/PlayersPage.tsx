@@ -234,7 +234,7 @@ export default function PlayersPage() {
           )}
           <button
             onClick={() => { setShowAddForm(true); setFormName(''); setFormNotes('') }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <UserPlus size={16} />
             Add Player
@@ -305,7 +305,7 @@ export default function PlayersPage() {
             <button
               onClick={handleAdd}
               disabled={saving || !formName.trim()}
-              className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              className="px-4 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               {saving ? 'Adding...' : 'Add Player'}
             </button>
@@ -321,7 +321,7 @@ export default function PlayersPage() {
           <p className="text-sm text-gray-500 mb-4">Add your first opponent or doubles partner to get started.</p>
           <button
             onClick={() => { setShowAddForm(true); setFormName(''); setFormNotes('') }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <UserPlus size={16} />
             Add Player

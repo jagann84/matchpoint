@@ -243,7 +243,7 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mb-4">Log your first match to see your stats here.</p>
           <button
             onClick={() => navigate('/log-match')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors"
           >
             Log Match
           </button>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
             onClick={() => setPeriod(p)}
             aria-pressed={period === p}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 ${
-              period === p ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              period === p ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             {p === 'all' ? 'All Time' : p === 'year' ? 'This Year' : 'This Month'}

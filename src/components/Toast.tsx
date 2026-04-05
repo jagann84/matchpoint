@@ -37,7 +37,7 @@ export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => 
           onClick={() => toast.matchId && onViewMatch?.(toast.matchId)}
           className={`flex items-start gap-2 px-4 py-3 rounded-lg shadow-xl ring-1 ring-black/5 text-sm animate-[slideIn_0.2s_ease-out] ${
             toast.type === 'success'
-              ? 'bg-green-600 text-white'
+              ? 'bg-green-700 text-white'
               : 'bg-red-600 text-white'
           } ${toast.matchId ? 'cursor-pointer' : ''}`}
         >

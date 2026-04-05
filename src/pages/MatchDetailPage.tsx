@@ -195,7 +195,7 @@ export default function MatchDetailPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -221,7 +221,7 @@ export default function MatchDetailPage() {
                   onClick={() => setEditForm(prev => ({ ...prev, result: r }))}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     editForm.result === r
-                      ? r === 'win' ? 'bg-green-600 text-white' : r === 'loss' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                      ? r === 'win' ? 'bg-green-700 text-white' : r === 'loss' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -276,7 +276,7 @@ export default function MatchDetailPage() {
                   key={s}
                   onClick={() => setEditForm(prev => ({ ...prev, surface: s }))}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-                    editForm.surface === s ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    editForm.surface === s ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {s.replace('-', ' ')}
@@ -293,7 +293,7 @@ export default function MatchDetailPage() {
                   key={t}
                   onClick={() => setEditForm(prev => ({ ...prev, match_type: t }))}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-                    editForm.match_type === t ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    editForm.match_type === t ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {t}
