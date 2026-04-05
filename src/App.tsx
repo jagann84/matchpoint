@@ -13,6 +13,7 @@ import MatchDetailPage from './pages/MatchDetailPage'
 import HeadToHeadPage from './pages/HeadToHeadPage'
 import PartnerStatsPage from './pages/PartnerStatsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -82,6 +83,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <ToastContainer />
+          <SpeedInsights />
           <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
