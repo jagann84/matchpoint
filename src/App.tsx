@@ -13,6 +13,7 @@ import MatchDetailPage from './pages/MatchDetailPage'
 import HeadToHeadPage from './pages/HeadToHeadPage'
 import PartnerStatsPage from './pages/PartnerStatsPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import NotFoundPage from './pages/NotFoundPage'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Analytics } from '@vercel/analytics/react'
 
@@ -73,7 +74,17 @@ function AppRoutes() {
         <Route path="/partner/:id" element={<PartnerStatsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="*"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
     </Routes>
   )
 }
