@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import {
-  Loader2, Filter, ChevronDown, ChevronUp, List,
+  Loader2, Filter, ChevronDown, ChevronUp, List, Search, X,
 } from 'lucide-react'
 
 export default function HistoryPage() {
@@ -14,6 +14,7 @@ export default function HistoryPage() {
   const [matches, setMatches] = useState<MatchWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Filter state
   const [filterResult, setFilterResult] = useState<string>('')
@@ -53,6 +54,21 @@ export default function HistoryPage() {
     if (filterLeague && m.league_id !== filterLeague) return false
     if (filterYear && !m.date.startsWith(filterYear)) return false
     if (filterTag && !m.tags.includes(filterTag)) return false
+
+    // Free-text search across opponent names, partner, location, notes, league, tags
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const searchableFields = [
+        ...m.opponents.map(o => o.name),
+        m.partner_name,
+        m.location,
+        m.notes,
+        m.league_name,
+        ...m.tags,
+      ]
+      if (!searchableFields.some(f => f?.toLowerCase().includes(q))) return false
+    }
+
     return true
   })
 
@@ -61,7 +77,7 @@ export default function HistoryPage() {
   // Collect all unique tags
   const allTags = [...new Set(matches.flatMap(m => m.tags))].sort()
 
-  const hasActiveFilters = filterResult || filterSurface || filterMatchType || filterFormat || filterOpponent || filterLeague || filterYear || filterTag
+  const hasActiveFilters = filterResult || filterSurface || filterMatchType || filterFormat || filterOpponent || filterLeague || filterYear || filterTag || searchQuery
 
   const clearFilters = () => {
     setFilterResult('')
@@ -72,6 +88,7 @@ export default function HistoryPage() {
     setFilterLeague('')
     setFilterYear('')
     setFilterTag('')
+    setSearchQuery('')
   }
 
   if (loading) {
@@ -99,6 +116,28 @@ export default function HistoryPage() {
           {hasActiveFilters && <span className="w-2 h-2 bg-green-700 rounded-full" />}
           {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search opponents, location, notes..."
+          aria-label="Search matches"
+          className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent placeholder:text-gray-400"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Filters */}
