@@ -24,7 +24,7 @@ export default function LogMatchPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Context data
-  const [apiKey, setApiKey] = useState('')
+  const [hasApiKey, setHasApiKey] = useState(false)
   const [players, setPlayers] = useState<{ id: string; name: string }[]>([])
   const [leagues, setLeagues] = useState<{ id: string; name: string }[]>([])
   const [defaultSurface, setDefaultSurface] = useState<string>('hard')
@@ -80,7 +80,7 @@ export default function LogMatchPage() {
     ])
 
     if (settingsRes.data) {
-      setApiKey(settingsRes.data.anthropic_api_key || '')
+      setHasApiKey(!!settingsRes.data.anthropic_api_key)
       setDefaultSurface(settingsRes.data.default_surface || 'hard')
       setDefaultMatchType(settingsRes.data.default_match_type || 'friendly')
       setSavedLocations(settingsRes.data.custom_locations || [])
@@ -105,7 +105,7 @@ export default function LogMatchPage() {
       setError('Please describe your match before submitting.')
       return
     }
-    if (!apiKey) {
+    if (!hasApiKey) {
       setError('Set up your Anthropic API key in Settings to enable smart match logging.')
       return
     }
@@ -116,7 +116,7 @@ export default function LogMatchPage() {
 
     try {
       const result = await parseMatchInput(
-        apiKey, input.trim(),
+        input.trim(),
         players.map(p => p.name),
         leagues.map(l => l.name),
         defaultSurface, defaultMatchType,
@@ -345,7 +345,7 @@ export default function LogMatchPage() {
         </div>
       </div>
 
-      {!apiKey && (
+      {!hasApiKey && (
         <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
           Set up your Anthropic API key in Settings to enable smart match logging.
         </div>

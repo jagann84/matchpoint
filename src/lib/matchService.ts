@@ -10,133 +10,50 @@ interface SaveMatchResult {
 export async function saveMatch(
   userId: string,
   parsed: ParsedMatch,
-  existingPlayers: { id: string; name: string }[],
-  existingLeagues: { id: string; name: string }[],
+  _existingPlayers: { id: string; name: string }[],
+  _existingLeagues: { id: string; name: string }[],
   rawInput?: string,
 ): Promise<SaveMatchResult> {
-  const newPlayers: string[] = []
-  const newLeagues: string[] = []
-
-  // Resolve opponent IDs (create if new)
-  const opponentIds: string[] = []
-  for (const name of parsed.opponentNames) {
-    const existing = existingPlayers.find(
-      p => p.name.toLowerCase() === name.toLowerCase()
-    )
-    if (existing) {
-      opponentIds.push(existing.id)
-    } else {
-      const { data } = await supabase
-        .from('players')
-        .insert({ user_id: userId, name, auto_created: true })
-        .select('id')
-        .single()
-      if (data) {
-        opponentIds.push(data.id)
-        newPlayers.push(name)
-      }
-    }
+  // Build a single JSONB payload — the Postgres function handles
+  // player/league resolution, match insert, and all child rows
+  // inside one atomic transaction.
+  const payload = {
+    user_id: userId,
+    date: parsed.date,
+    match_type: parsed.matchType,
+    format: parsed.format,
+    surface: parsed.surface,
+    location: parsed.location,
+    league_name: parsed.leagueName,
+    result: parsed.result,
+    is_competitive: parsed.isCompetitive,
+    is_pro_set: parsed.isProSet,
+    third_set_tiebreak: parsed.thirdSetTiebreak,
+    retired: parsed.retired,
+    notes: parsed.notes,
+    raw_input: rawInput || null,
+    partner_name: parsed.partnerName,
+    opponent_names: parsed.opponentNames,
+    sets: parsed.sets.map(s => ({
+      my_games: s.myGames,
+      opponent_games: s.opponentGames,
+      is_tiebreak: s.isTiebreak,
+      tiebreak_score: s.tiebreakScore,
+    })),
+    tags: parsed.tags,
   }
 
-  // Resolve partner ID (create if new)
-  let partnerId: string | null = null
-  if (parsed.partnerName) {
-    const existing = existingPlayers.find(
-      p => p.name.toLowerCase() === parsed.partnerName!.toLowerCase()
-    )
-    if (existing) {
-      partnerId = existing.id
-    } else {
-      const { data } = await supabase
-        .from('players')
-        .insert({ user_id: userId, name: parsed.partnerName, auto_created: true })
-        .select('id')
-        .single()
-      if (data) {
-        partnerId = data.id
-        newPlayers.push(parsed.partnerName)
-      }
-    }
+  const { data, error } = await supabase.rpc('save_match_transaction', { payload })
+
+  if (error || !data) {
+    throw new Error('Failed to save match: ' + (error?.message || 'unknown error'))
   }
 
-  // Resolve league ID (create if new)
-  let leagueId: string | null = null
-  if (parsed.leagueName) {
-    const existing = existingLeagues.find(
-      l => l.name.toLowerCase() === parsed.leagueName!.toLowerCase()
-    )
-    if (existing) {
-      leagueId = existing.id
-    } else {
-      const leagueType = parsed.matchType === 'tournament' ? 'tournament' : 'league'
-      const { data } = await supabase
-        .from('leagues')
-        .insert({ user_id: userId, name: parsed.leagueName, type: leagueType, auto_created: true })
-        .select('id')
-        .single()
-      if (data) {
-        leagueId = data.id
-        newLeagues.push(parsed.leagueName)
-      }
-    }
+  return {
+    matchId: data.match_id,
+    newPlayers: data.new_players ?? [],
+    newLeagues: data.new_leagues ?? [],
   }
-
-  // Insert match
-  const { data: match, error: matchError } = await supabase
-    .from('matches')
-    .insert({
-      user_id: userId,
-      date: parsed.date,
-      match_type: parsed.matchType,
-      format: parsed.format,
-      surface: parsed.surface,
-      location: parsed.location,
-      league_id: leagueId,
-      result: parsed.result,
-      is_competitive: parsed.isCompetitive,
-      is_pro_set: parsed.isProSet,
-      third_set_tiebreak: parsed.thirdSetTiebreak,
-      retired: parsed.retired,
-      notes: parsed.notes,
-      raw_input: rawInput || null,
-      partner_id: partnerId,
-    })
-    .select('id')
-    .single()
-
-  if (matchError || !match) {
-    throw new Error('Failed to save match: ' + (matchError?.message || 'unknown error'))
-  }
-
-  // Insert opponents
-  if (opponentIds.length > 0) {
-    await supabase.from('match_opponents').insert(
-      opponentIds.map(pid => ({ match_id: match.id, player_id: pid }))
-    )
-  }
-
-  // Insert sets
-  if (parsed.sets.length > 0) {
-    await supabase.from('match_sets').insert(
-      parsed.sets.map((s, i) => ({
-        match_id: match.id,
-        set_number: i + 1,
-        my_games: s.myGames,
-        opponent_games: s.opponentGames,
-        is_tiebreak: s.isTiebreak,
-        tiebreak_score: s.tiebreakScore,
-      }))
-    )
-  }
-
-  // Insert tags
-  if (parsed.tags.length > 0) {
-    await supabase.from('match_tags').insert(
-      parsed.tags.map(tag => ({ match_id: match.id, tag_id: tag }))
-    )
-  }
-
-  return { matchId: match.id, newPlayers, newLeagues }
 }
 
 export async function checkDuplicate(

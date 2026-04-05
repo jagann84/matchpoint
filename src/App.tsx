@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage'
 import MatchDetailPage from './pages/MatchDetailPage'
 import HeadToHeadPage from './pages/HeadToHeadPage'
 import PartnerStatsPage from './pages/PartnerStatsPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -53,6 +54,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         element={
           <ProtectedRoute>
