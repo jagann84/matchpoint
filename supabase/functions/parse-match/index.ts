@@ -55,8 +55,9 @@ Schema:
 }
 
 Rules:
-- If a player name closely matches a known player, use the known name exactly.
-- If a player name is new (not in the known list), use the name as provided — it will be auto-created.
+- If a player name exactly matches a known player (case-insensitive), use the known name exactly.
+- If a player name partially matches MULTIPLE known players (e.g., "Scott" could be "Scott", "Scott M.", or "Scott Wilson"), use the name as provided and set confidence to "medium". Add to ambiguities: "Name '[name]' could match multiple known players: [list]. Please confirm which one."
+- If a player name is new (not in the known list and no partial matches), use the name as provided — it will be auto-created.
 - If a league/tournament name closely matches a known one, use the known name exactly.
 - If a league/tournament name is new, use it as provided — it will be auto-created.
 - If date is not specified, use today's date.

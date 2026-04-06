@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { parseMatchInput, type ParsedMatch } from '../lib/anthropic'
 import { saveMatch, checkDuplicate } from '../lib/matchService'
+import { detectAmbiguousNames, type AmbiguousName } from '../lib/playerMatching'
+import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
 
@@ -39,6 +41,13 @@ export default function LogMatchPage() {
   const [pendingMatches, setPendingMatches] = useState<ParsedMatch[]>([])
   const [currentConfirmIdx, setCurrentConfirmIdx] = useState(0)
   const [duplicateWarning, setDuplicateWarning] = useState(false)
+
+  // Disambiguation state
+  const [disambiguating, setDisambiguating] = useState(false)
+  const [disambiguationData, setDisambiguationData] = useState<{
+    ambiguities: AmbiguousName[]
+    matches: ParsedMatch[]
+  } | null>(null)
 
   // Manual form
   const [showManual, setShowManual] = useState(false)
@@ -121,6 +130,34 @@ export default function LogMatchPage() {
         leagues.map(l => l.name),
         defaultSurface, defaultMatchType,
       )
+
+      // Check all matches for ambiguous player names
+      const allAmbiguities: AmbiguousName[] = []
+      for (const match of result.matches) {
+        const ambiguities = detectAmbiguousNames(
+          match.opponentNames,
+          match.partnerName,
+          players,
+        )
+        allAmbiguities.push(...ambiguities)
+      }
+
+      // If there are ambiguous names, show disambiguation UI before proceeding
+      if (allAmbiguities.length > 0) {
+        // Deduplicate ambiguities by inputName (same name across matches)
+        const seen = new Set<string>()
+        const unique = allAmbiguities.filter(a => {
+          const key = `${a.field}-${a.inputName.toLowerCase()}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+
+        setDisambiguationData({ ambiguities: unique, matches: result.matches })
+        setDisambiguating(true)
+        setParsing(false)
+        return
+      }
 
       // Process each match
       const highConfidence: ParsedMatch[] = []
@@ -234,11 +271,116 @@ export default function LogMatchPage() {
     }
   }
 
+  const handleDisambiguationResolved = async (resolutions: Map<string, string>) => {
+    if (!disambiguationData) return
+
+    // Apply resolutions to all matches
+    const resolvedMatches = disambiguationData.matches.map(match => {
+      const updated = { ...match }
+      updated.opponentNames = match.opponentNames.map((name, i) => {
+        const key = `opponent-${i}`
+        return resolutions.get(key) ?? name
+      })
+      if (match.partnerName) {
+        const partnerResolved = resolutions.get('partner-0')
+        if (partnerResolved) updated.partnerName = partnerResolved
+      }
+      return updated
+    })
+
+    setDisambiguating(false)
+    setDisambiguationData(null)
+
+    // Now proceed with the normal save flow using resolved names
+    const highConfidence: ParsedMatch[] = []
+    const needsConfirm: ParsedMatch[] = []
+
+    for (const match of resolvedMatches) {
+      (match as ParsedMatch & { rawInput?: string }).rawInput = input.trim()
+      if (match.confidence === 'high') {
+        highConfidence.push(match)
+      } else {
+        needsConfirm.push(match)
+      }
+    }
+
+    let savedCount = 0
+    let wins = 0
+    let losses = 0
+    const allNewPlayers: string[] = []
+    const allNewLeagues: string[] = []
+
+    for (const match of highConfidence) {
+      const isDup = await checkDuplicate(user!.id, match.date, match.opponentNames, match.sets, players)
+      if (isDup) {
+        match.ambiguities = [...match.ambiguities, 'This looks like a duplicate match (same date, opponent, and score). Save anyway?']
+        match.confidence = 'medium'
+        needsConfirm.push(match)
+        continue
+      }
+
+      const res = await saveMatch(user!.id, match, players, leagues, input.trim())
+      savedCount++
+      if (match.result === 'win' || match.result === 'walkover') wins++
+      else losses++
+      allNewPlayers.push(...res.newPlayers)
+      allNewLeagues.push(...res.newLeagues)
+    }
+
+    if (savedCount > 0) {
+      await loadContext()
+      const opponentStr = highConfidence.length === 1
+        ? `vs ${highConfidence[0].opponentNames.join(' & ')}`
+        : ''
+      const scoreStr = highConfidence.length === 1 && highConfidence[0].sets.length > 0
+        ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
+        : ''
+      const resultStr = highConfidence.length === 1
+        ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
+        : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
+
+      let msg = savedCount === 1
+        ? `${resultStr} ${opponentStr}${scoreStr}`
+        : resultStr
+
+      if (allNewPlayers.length > 0) msg += ` · New: ${allNewPlayers.join(', ')}`
+      if (allNewLeagues.length > 0) msg += ` · New league: ${allNewLeagues.join(', ')}`
+
+      showToast(msg, 'success')
+    }
+
+    if (needsConfirm.length > 0) {
+      setPendingMatches(needsConfirm)
+      setCurrentConfirmIdx(0)
+    } else {
+      setInput('')
+    }
+  }
+
+  const handleDisambiguationCancel = () => {
+    setDisambiguating(false)
+    setDisambiguationData(null)
+  }
+
   const handleManualSave = async () => {
     if (manualForm.opponentNames[0] === '' && manualForm.result !== 'walkover') {
       setError('Please enter at least one opponent name.')
       return
     }
+
+    // Check for ambiguous names before saving
+    const ambiguities = detectAmbiguousNames(
+      manualForm.opponentNames,
+      manualForm.partnerName,
+      players,
+    )
+
+    if (ambiguities.length > 0) {
+      setDisambiguationData({ ambiguities, matches: [manualForm] })
+      setDisambiguating(true)
+      return
+    }
+
     try {
       const res = await saveMatch(user!.id, manualForm, players, leagues)
       await loadContext()
@@ -252,6 +394,20 @@ export default function LogMatchPage() {
     } catch {
       showToast('Failed to save match', 'error')
     }
+  }
+
+  // If we need disambiguation, show that first
+  if (disambiguating && disambiguationData) {
+    return (
+      <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Log Match</h1>
+        <PlayerDisambiguation
+          ambiguities={disambiguationData.ambiguities}
+          onResolved={handleDisambiguationResolved}
+          onCancel={handleDisambiguationCancel}
+        />
+      </div>
+    )
   }
 
   // If we have pending confirmation matches, show the card
