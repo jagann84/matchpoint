@@ -62,17 +62,27 @@ export async function saveMatch(
   }
 }
 
-export async function syncPendingMatches(): Promise<number> {
+export async function syncPendingMatches(): Promise<{ synced: number; failed: number }> {
   const pending = await dequeueAll()
   let synced = 0
+  let failed = 0
   for (const item of pending) {
-    const { error } = await supabase.rpc('save_match_transaction', { payload: item.payload })
-    if (!error) {
-      await removeFromQueue(item.id)
-      synced++
+    let success = false
+    // Retry up to 3 times with backoff
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error } = await supabase.rpc('save_match_transaction', { payload: item.payload })
+      if (!error) {
+        await removeFromQueue(item.id)
+        synced++
+        success = true
+        break
+      }
+      // Wait before retry (500ms, 1s, 2s)
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)))
     }
+    if (!success) failed++
   }
-  return synced
+  return { synced, failed }
 }
 
 export async function checkDuplicate(
@@ -108,7 +118,8 @@ export async function checkDuplicate(
     if (!opponents) continue
 
     const matchOppIds = opponents.map(o => o.player_id)
-    const sameOpponents = oppIds.every(id => matchOppIds.includes(id))
+    const sameOpponents = oppIds.length === matchOppIds.length &&
+      oppIds.every(id => matchOppIds.includes(id))
 
     if (sameOpponents) {
       // Check if score also matches

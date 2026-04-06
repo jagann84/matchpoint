@@ -36,11 +36,15 @@ export default function OfflineBanner() {
   const handleSync = async () => {
     setSyncing(true)
     try {
-      const synced = await syncPendingMatches()
+      const { synced, failed } = await syncPendingMatches()
       if (synced > 0) {
         showToast(`Synced ${synced} match${synced > 1 ? 'es' : ''}`, 'success')
-        setPendingCount(prev => Math.max(0, prev - synced))
       }
+      if (failed > 0) {
+        showToast(`${failed} match${failed > 1 ? 'es' : ''} failed to sync — will retry`, 'error')
+      }
+      const remaining = await getPendingCount()
+      setPendingCount(remaining)
     } catch {
       // Silent fail, will retry
     }

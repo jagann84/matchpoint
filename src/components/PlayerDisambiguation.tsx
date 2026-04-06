@@ -22,7 +22,7 @@ export default function PlayerDisambiguation({ ambiguities, onResolved, onCancel
 
   const handleSelect = (resolvedName: string | null) => {
     const amb = ambiguities[currentIndex]
-    const key = `${amb.field}-${amb.index}-${amb.inputName}`
+    const key = `${amb.field}-${amb.index}`
 
     const newSelections = new Map(selections)
     newSelections.set(key, resolvedName)
@@ -31,12 +31,11 @@ export default function PlayerDisambiguation({ ambiguities, onResolved, onCancel
     // If all resolved, call back
     if (newSelections.size === ambiguities.length) {
       const resolutions = new Map<string, string>()
-      for (const [, amb] of ambiguities.entries()) {
-        const k = `${amb.field}-${amb.index}-${amb.inputName}`
+      for (const amb of ambiguities) {
+        const k = `${amb.field}-${amb.index}`
         const chosen = newSelections.get(k)
         // null means "keep original name" (create new player)
-        const resolvedField = `${amb.field}-${amb.index}`
-        resolutions.set(resolvedField, chosen ?? amb.inputName)
+        resolutions.set(k, chosen ?? amb.inputName)
       }
       onResolved(resolutions)
     }

@@ -7,19 +7,7 @@ import { detectAmbiguousNames, type AmbiguousName } from '../lib/playerMatching'
 import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
-
-type Surface = 'hard' | 'clay' | 'grass' | 'indoor-hard' | 'indoor-clay' | 'other'
-type MatchType = 'practice' | 'friendly' | 'league' | 'tournament'
-
-const SURFACES: { value: Surface; label: string }[] = [
-  { value: 'hard', label: 'Hard' }, { value: 'clay', label: 'Clay' },
-  { value: 'grass', label: 'Grass' }, { value: 'indoor-hard', label: 'Indoor Hard' },
-  { value: 'indoor-clay', label: 'Indoor Clay' }, { value: 'other', label: 'Other' },
-]
-const MATCH_TYPES: { value: MatchType; label: string }[] = [
-  { value: 'practice', label: 'Practice' }, { value: 'friendly', label: 'Friendly' },
-  { value: 'league', label: 'League' }, { value: 'tournament', label: 'Tournament' },
-]
+import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
 
 export default function LogMatchPage() {
   const { user } = useAuth()

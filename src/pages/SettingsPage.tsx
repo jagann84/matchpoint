@@ -5,8 +5,7 @@ import { Eye, EyeOff, Plus, X, Pencil, Trash2, Check, Loader2, Target, Download,
 import { exportAsJSON, exportAsCSV, importFromJSON } from '../lib/exportImport'
 import { showToast } from '../components/Toast'
 
-type Surface = 'hard' | 'clay' | 'grass' | 'indoor-hard' | 'indoor-clay' | 'other'
-type MatchType = 'practice' | 'friendly' | 'league' | 'tournament'
+import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
 
 interface UserSettings {
   id?: string
@@ -44,21 +43,6 @@ const TAG_CATEGORIES = [
   'serve', 'return', 'net', 'baseline', 'mental', 'fitness', 'other',
 ]
 
-const SURFACES: { value: Surface; label: string }[] = [
-  { value: 'hard', label: 'Hard' },
-  { value: 'clay', label: 'Clay' },
-  { value: 'grass', label: 'Grass' },
-  { value: 'indoor-hard', label: 'Indoor Hard' },
-  { value: 'indoor-clay', label: 'Indoor Clay' },
-  { value: 'other', label: 'Other' },
-]
-
-const MATCH_TYPES: { value: MatchType; label: string }[] = [
-  { value: 'practice', label: 'Practice' },
-  { value: 'friendly', label: 'Friendly' },
-  { value: 'league', label: 'League' },
-  { value: 'tournament', label: 'Tournament' },
-]
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth()

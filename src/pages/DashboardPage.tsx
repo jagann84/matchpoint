@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, ReferenceLine,
 } from 'recharts'
+import { useMatchBreakdown } from '../hooks/useMatchBreakdown'
 
 type TimePeriod = 'all' | 'year' | 'month'
 
@@ -88,62 +89,8 @@ export default function DashboardPage() {
     return { wins, losses, total, winRate, streak, streakType }
   }, [matches])
 
-  // Win rate by surface
-  const surfaceData = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of matches) {
-      const s = m.surface
-      if (!map.has(s)) map.set(s, { wins: 0, total: 0 })
-      const entry = map.get(s)!
-      entry.total++
-      if (m.result === 'win' || m.result === 'walkover') entry.wins++
-    }
-    return [...map.entries()]
-      .map(([name, { wins, total }]) => ({
-        name: name.replace('-', ' '),
-        winRate: Math.round((wins / total) * 100),
-        total,
-      }))
-      .sort((a, b) => b.total - a.total)
-  }, [matches])
-
-  // Win rate by match type
-  const matchTypeData = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of matches) {
-      const t = m.match_type
-      if (!map.has(t)) map.set(t, { wins: 0, total: 0 })
-      const entry = map.get(t)!
-      entry.total++
-      if (m.result === 'win' || m.result === 'walkover') entry.wins++
-    }
-    return [...map.entries()]
-      .map(([name, { wins, total }]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        winRate: Math.round((wins / total) * 100),
-        total,
-      }))
-      .sort((a, b) => b.total - a.total)
-  }, [matches])
-
-  // Win rate by league
-  const leagueData = useMemo(() => {
-    const map = new Map<string, { wins: number; total: number }>()
-    for (const m of matches) {
-      if (!m.league_name) continue
-      if (!map.has(m.league_name)) map.set(m.league_name, { wins: 0, total: 0 })
-      const entry = map.get(m.league_name)!
-      entry.total++
-      if (m.result === 'win' || m.result === 'walkover') entry.wins++
-    }
-    return [...map.entries()]
-      .map(([name, { wins, total }]) => ({
-        name,
-        winRate: Math.round((wins / total) * 100),
-        total,
-      }))
-      .sort((a, b) => b.total - a.total)
-  }, [matches])
+  // Win rate breakdowns (shared hook)
+  const { bySurface: surfaceData, byMatchType: matchTypeData, byLeague: leagueData } = useMatchBreakdown(matches)
 
   // Top 3 opponents
   const topOpponents = useMemo(() => {

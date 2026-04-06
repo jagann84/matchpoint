@@ -7,9 +7,7 @@ import { format } from 'date-fns'
 import {
   ArrowLeft, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
 } from 'lucide-react'
-
-const SURFACES = ['hard', 'clay', 'grass', 'indoor-hard', 'indoor-clay', 'other']
-const MATCH_TYPES = ['practice', 'friendly', 'league', 'tournament']
+import { SURFACES, MATCH_TYPES } from '../lib/constants'
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -68,6 +66,13 @@ export default function MatchDetailPage() {
 
   const handleSave = async () => {
     if (!match || !id) return
+
+    // Validate: non-walkover matches need at least one set
+    if (editForm.result !== 'walkover' && editForm.sets.length === 0) {
+      showToast('Add at least one set score', 'error')
+      return
+    }
+
     setSaving(true)
 
     // Update match record
@@ -281,13 +286,13 @@ export default function MatchDetailPage() {
             <div className="flex flex-wrap gap-2">
               {SURFACES.map(s => (
                 <button
-                  key={s}
-                  onClick={() => setEditForm(prev => ({ ...prev, surface: s }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-                    editForm.surface === s ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  key={s.value}
+                  onClick={() => setEditForm(prev => ({ ...prev, surface: s.value }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    editForm.surface === s.value ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {s.replace('-', ' ')}
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -298,13 +303,13 @@ export default function MatchDetailPage() {
             <div className="flex flex-wrap gap-2">
               {MATCH_TYPES.map(t => (
                 <button
-                  key={t}
-                  onClick={() => setEditForm(prev => ({ ...prev, match_type: t }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-                    editForm.match_type === t ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  key={t.value}
+                  onClick={() => setEditForm(prev => ({ ...prev, match_type: t.value }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    editForm.match_type === t.value ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {t}
+                  {t.label}
                 </button>
               ))}
             </div>

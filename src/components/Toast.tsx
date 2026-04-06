@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CheckCircle, AlertCircle, X } from 'lucide-react'
 
 interface ToastData {
@@ -22,8 +23,9 @@ export function showToast(
   addToastFn?.({ message, type, matchId, onAction, actionLabel })
 }
 
-export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => void }) {
+export function ToastContainer() {
   const [toasts, setToasts] = useState<ToastData[]>([])
+  const navigate = useNavigate()
 
   useEffect(() => {
     addToastFn = (toast) => {
@@ -43,7 +45,7 @@ export function ToastContainer({ onViewMatch }: { onViewMatch?: (id: string) => 
         <div
           key={toast.id}
           role="alert"
-          onClick={() => toast.matchId && onViewMatch?.(toast.matchId)}
+          onClick={() => toast.matchId && navigate(`/history/${toast.matchId}`)}
           className={`flex items-start gap-2 px-4 py-3 rounded-lg shadow-xl ring-1 ring-black/5 text-sm animate-[slideIn_0.2s_ease-out] ${
             toast.type === 'success'
               ? 'bg-green-700 text-white'

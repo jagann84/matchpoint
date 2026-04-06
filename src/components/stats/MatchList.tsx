@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { format } from 'date-fns'
 import type { MatchWithDetails } from '../../lib/matchQueries'
+
+const PAGE_SIZE = 20
 
 interface MatchListProps {
   matches: MatchWithDetails[]
@@ -8,9 +11,13 @@ interface MatchListProps {
 }
 
 export default function MatchList({ matches, onMatchClick, showPartner }: MatchListProps) {
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? matches : matches.slice(0, PAGE_SIZE)
+  const hasMore = matches.length > PAGE_SIZE && !showAll
+
   return (
     <div className="space-y-2">
-      {matches.map(m => (
+      {visible.map(m => (
         <button
           key={m.id}
           onClick={() => onMatchClick(m.id)}
@@ -45,6 +52,14 @@ export default function MatchList({ matches, onMatchClick, showPartner }: MatchL
           </div>
         </button>
       ))}
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="w-full py-2 text-xs text-green-700 hover:text-green-800 font-medium focus:outline-none focus-visible:underline"
+        >
+          Show all {matches.length} matches
+        </button>
+      )}
     </div>
   )
 }
