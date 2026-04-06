@@ -6,8 +6,9 @@ import { saveMatch, checkDuplicate } from '../lib/matchService'
 import { detectAmbiguousNames, type AmbiguousName } from '../lib/playerMatching'
 import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
-import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
+import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus, Mic, MicOff } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
+import { useVoiceInput } from '../hooks/useVoiceInput'
 
 export default function LogMatchPage() {
   const { user } = useAuth()
@@ -96,6 +97,25 @@ export default function LogMatchPage() {
       setTimeout(() => textareaRef.current?.focus(), 300)
     }
   }, [])
+
+  // ── Voice input (Web Speech API) ──────────────────────────────
+  // We stash handleSubmit in a ref because (a) it's not memoized and
+  // (b) the silence-timeout callback inside useVoiceInput would otherwise
+  // capture a stale version on every render.
+  const handleSubmitRef = useRef<() => void>(() => {})
+  const voice = useVoiceInput({
+    onFinalTranscript: (text) => {
+      // Append to whatever the user has already typed, with a space.
+      setInput(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))
+      setError('')
+    },
+    onSilenceTimeout: () => {
+      // Auto-submit once the user has stopped talking for a beat.
+      if (voice.isListening) voice.stop()
+      handleSubmitRef.current()
+    },
+    silenceMs: 2000,
+  })
 
   const handleSubmit = async () => {
     if (!input.trim()) {
@@ -434,6 +454,10 @@ export default function LogMatchPage() {
     )
   }
 
+  // Keep the ref pointing at the latest handleSubmit so voice silence-timeout
+  // always calls the current closure (with fresh `input`, `players`, etc.)
+  handleSubmitRef.current = handleSubmit
+
   // Freeform input
   return (
     <div className="p-4 md:p-8 max-w-2xl overflow-x-hidden">
@@ -443,22 +467,61 @@ export default function LogMatchPage() {
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => { setInput(e.target.value); setError('') }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
-          }}
-          placeholder='e.g., "Beat Scott 6-4 6-3 on hard court, USTA 4.5 league match at Reston courts, serve was great"'
-          rows={5}
-          className="w-full px-3 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none placeholder:text-gray-500"
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => { setInput(e.target.value); setError('') }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
+            }}
+            placeholder={
+              voice.isSupported
+                ? 'e.g., "Beat Scott 6-4 6-3 on hard court" — or tap the mic to speak'
+                : 'e.g., "Beat Scott 6-4 6-3 on hard court, USTA 4.5 league match at Reston courts"'
+            }
+            rows={5}
+            className={`w-full px-3 py-3 ${voice.isSupported ? 'pr-12' : ''} border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none placeholder:text-gray-500 transition-colors ${
+              voice.isListening ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200'
+            }`}
+          />
 
-        {error && (
+          {voice.isSupported && (
+            <button
+              type="button"
+              onClick={() => (voice.isListening ? voice.stop() : voice.start())}
+              aria-label={voice.isListening ? 'Stop voice input' : 'Start voice input'}
+              className={`absolute top-2 right-2 p-2 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                voice.isListening
+                  ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse shadow-lg shadow-red-200'
+                  : 'bg-gray-100 hover:bg-green-100 text-gray-600 hover:text-green-700'
+              }`}
+            >
+              {voice.isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+          )}
+        </div>
+
+        {/* Live interim transcript preview */}
+        {voice.isListening && voice.interimTranscript && (
+          <div className="mt-2 text-xs text-gray-400 italic px-1">
+            {voice.interimTranscript}
+          </div>
+        )}
+        {voice.isListening && !voice.interimTranscript && (
+          <div className="mt-2 text-xs text-green-700 px-1 flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+            </span>
+            Listening… describe your match
+          </div>
+        )}
+
+        {(error || voice.error) && (
           <div className="flex items-start gap-2 mt-3 text-sm text-red-600">
             <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
-            {error}
+            {error || voice.error}
           </div>
         )}
 
@@ -496,7 +559,10 @@ export default function LogMatchPage() {
       )}
 
       <p className="text-xs text-gray-500 mt-3">
-        Tip: Press ⌘+Enter to submit. You can type naturally — "Beat Scott 6-4 6-3 on hard" or dictate with your phone's microphone.
+        Tip: Press ⌘+Enter to submit.{' '}
+        {voice.isSupported
+          ? 'Tap the mic to dictate — we\'ll auto-submit when you stop speaking.'
+          : 'You can type naturally — "Beat Scott 6-4 6-3 on hard".'}
       </p>
     </div>
   )
