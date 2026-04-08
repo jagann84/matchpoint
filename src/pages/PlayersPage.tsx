@@ -63,11 +63,15 @@ export default function PlayersPage() {
   const loadStats = useCallback(async () => {
     if (!user) return
 
-    // Get all matches with their opponents
+    // Get all LIVE matches (exclude soft-deleted) with their opponents.
+    // Without the deleted_at filter, stats here would diverge from History
+    // and Dashboard — exactly the "phantom match" bug where a deleted match
+    // still showed up as "1 match" here and blocked player deletion.
     const { data: matches } = await supabase
       .from('matches')
       .select('id, date, result, partner_id')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
 
     const { data: opponents } = await supabase
       .from('match_opponents')
@@ -160,9 +164,11 @@ export default function PlayersPage() {
     const player = players.find(p => p.id === id)
     const playerStats = stats[id]
 
-    // Guard: players with match history can't be deleted because of FK
+    // Guard: players with LIVE match history can't be deleted because of FK
     // constraints on match_opponents.player_id / matches.partner_id. Point
     // the user at the Merge feature instead, which reassigns history safely.
+    // Note: loadStats now filters out soft-deleted matches, so this guard
+    // only fires for genuinely live match involvement.
     if (playerStats && playerStats.totalMatches > 0) {
       showToast(
         `Can't delete ${player?.name ?? 'this player'} — they have ${playerStats.totalMatches} match${playerStats.totalMatches !== 1 ? 'es' : ''}. Use Merge to combine with another player, or delete those matches first.`,
@@ -172,10 +178,53 @@ export default function PlayersPage() {
       return
     }
 
+    // Even with 0 live matches, this player may still be linked to
+    // SOFT-DELETED matches. Those rows hold live FK references and will
+    // block the delete with 23503. Since the user is explicitly deleting
+    // the player, we purge the ghost matches too — the ON DELETE CASCADE
+    // on match_opponents.match_id cleans up the opponent rows for us.
+    const [{ data: oppRows }, { data: partnerMatchRows }] = await Promise.all([
+      supabase.from('match_opponents').select('match_id').eq('player_id', id),
+      supabase.from('matches').select('id, deleted_at').eq('partner_id', id),
+    ])
+
+    const oppMatchIds = (oppRows ?? []).map(r => r.match_id)
+    const partnerMatchIds = (partnerMatchRows ?? []).map(r => r.id)
+    const allLinkedMatchIds = Array.from(new Set([...oppMatchIds, ...partnerMatchIds]))
+
+    if (allLinkedMatchIds.length > 0) {
+      // Defensive re-check: are ANY of these actually live? Stats can be
+      // stale (e.g. a match was logged in another tab since we loaded).
+      const { data: liveLinked } = await supabase
+        .from('matches')
+        .select('id')
+        .in('id', allLinkedMatchIds)
+        .is('deleted_at', null)
+
+      if (liveLinked && liveLinked.length > 0) {
+        showToast(
+          `Can't delete ${player?.name ?? 'this player'} — found ${liveLinked.length} live match${liveLinked.length !== 1 ? 'es' : ''} referencing them. Please refresh and try again.`,
+          'error',
+        )
+        setDeletingId(null)
+        await loadStats() // re-sync stats
+        return
+      }
+
+      // All linked matches are soft-deleted. Hard-delete them; cascade
+      // handles match_opponents / match_sets / match_tags automatically.
+      const { error: purgeErr } = await supabase
+        .from('matches')
+        .delete()
+        .in('id', allLinkedMatchIds)
+      if (purgeErr) {
+        showToast(`Couldn't clean up archived matches: ${purgeErr.message}`, 'error')
+        return
+      }
+    }
+
     const { error } = await supabase.from('players').delete().eq('id', id)
     if (error) {
-      // Fallback in case stats were stale and FK still fires (e.g. a match
-      // logged in another tab since we loaded stats).
       showToast(
         error.code === '23503'
           ? `Can't delete ${player?.name ?? 'this player'} — they still have matches on record. Use Merge instead.`
@@ -186,7 +235,13 @@ export default function PlayersPage() {
     }
 
     setDeletingId(null)
-    showToast(`Deleted ${player?.name ?? 'player'}`, 'success')
+    const purgedCount = allLinkedMatchIds.length
+    showToast(
+      purgedCount > 0
+        ? `Deleted ${player?.name ?? 'player'} and ${purgedCount} archived match${purgedCount !== 1 ? 'es' : ''}`
+        : `Deleted ${player?.name ?? 'player'}`,
+      'success',
+    )
     await Promise.all([loadPlayers(), loadStats()])
   }
 
