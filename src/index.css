@@ -30,6 +30,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Tailwind v4 dropped the default `cursor: pointer` on <button>. Restore it
+   globally so every clickable control signals interactivity on hover.
+   Disabled buttons keep the default cursor so "can't click" stays obvious. */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
 .input-field {
   width: 100%;
   padding: 0.5rem 0.75rem;
