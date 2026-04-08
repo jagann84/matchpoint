@@ -7,6 +7,7 @@ import {
   Plus, Pencil, Trash2, X, Check, Loader2, Search,
   Merge, UserPlus, Users,
 } from 'lucide-react'
+import { showToast } from '../components/Toast'
 
 interface Player {
   id: string
@@ -156,11 +157,37 @@ export default function PlayersPage() {
   }
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('players').delete().eq('id', id)
-    if (!error) {
+    const player = players.find(p => p.id === id)
+    const playerStats = stats[id]
+
+    // Guard: players with match history can't be deleted because of FK
+    // constraints on match_opponents.player_id / matches.partner_id. Point
+    // the user at the Merge feature instead, which reassigns history safely.
+    if (playerStats && playerStats.totalMatches > 0) {
+      showToast(
+        `Can't delete ${player?.name ?? 'this player'} — they have ${playerStats.totalMatches} match${playerStats.totalMatches !== 1 ? 'es' : ''}. Use Merge to combine with another player, or delete those matches first.`,
+        'error',
+      )
       setDeletingId(null)
-      await Promise.all([loadPlayers(), loadStats()])
+      return
     }
+
+    const { error } = await supabase.from('players').delete().eq('id', id)
+    if (error) {
+      // Fallback in case stats were stale and FK still fires (e.g. a match
+      // logged in another tab since we loaded stats).
+      showToast(
+        error.code === '23503'
+          ? `Can't delete ${player?.name ?? 'this player'} — they still have matches on record. Use Merge instead.`
+          : `Couldn't delete player: ${error.message}`,
+        'error',
+      )
+      return
+    }
+
+    setDeletingId(null)
+    showToast(`Deleted ${player?.name ?? 'player'}`, 'success')
+    await Promise.all([loadPlayers(), loadStats()])
   }
 
   const toggleMergeSelect = (id: string) => {
