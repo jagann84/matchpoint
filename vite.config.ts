@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -54,5 +55,20 @@ export default defineConfig({
         },
       },
     },
+  },
+  test: {
+    // jsdom gives tests access to DOM globals (window, document, indexedDB
+    // surface via fake-indexeddb). Happy-dom is faster but has known gaps
+    // around IDB; stick with jsdom until we have a reason to switch.
+    environment: 'jsdom',
+    // The setup file installs fake-indexeddb BEFORE any test module runs,
+    // which matters because offlineQueue.ts calls indexedDB at import time
+    // on some code paths. See src/test/setup.ts.
+    setupFiles: ['./src/test/setup.ts'],
+    // Don't let the test runner touch the E2E/integration dirs if we ever
+    // add them. Right now we only want unit tests under src/.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Use globals so we don't have to import describe/it/expect everywhere.
+    globals: true,
   },
 })
