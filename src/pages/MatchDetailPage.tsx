@@ -8,6 +8,7 @@ import {
   ArrowLeft, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
 } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, RESULTS, isSurface, isMatchType, isResult } from '../lib/constants'
+import { localToday } from '../lib/dates'
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -88,6 +89,14 @@ export default function MatchDetailPage() {
     // Validate: non-walkover matches need at least one set
     if (editForm.result !== 'walkover' && editForm.sets.length === 0) {
       showToast('Add at least one set score', 'error')
+      return
+    }
+
+    // Defense in depth against future dates: the <input max={localToday()}>
+    // handles the date picker, but a user can still type "2030-01-01"
+    // directly. Catch that here rather than letting it into the DB.
+    if (editForm.date > localToday()) {
+      showToast("Match date can't be in the future", 'error')
       return
     }
 
@@ -238,6 +247,7 @@ export default function MatchDetailPage() {
             <input
               type="date"
               value={editForm.date}
+              max={localToday()}
               onChange={e => setEditForm(prev => ({ ...prev, date: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />

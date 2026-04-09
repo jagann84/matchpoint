@@ -9,6 +9,7 @@ import { showToast } from '../components/Toast'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
 import { logEvent, categorizeError, toMatchTypeDim, toSurfaceDim, toFormatDim } from '../lib/analytics'
+import { localToday } from '../lib/dates'
 
 export default function LogMatchPage() {
   const { user } = useAuth()
@@ -55,7 +56,7 @@ export default function LogMatchPage() {
 
   function createEmptyForm(): ParsedMatch {
     return {
-      date: new Date().toISOString().split('T')[0],
+      date: localToday(),
       matchType: (defaultMatchType as MatchType) || 'friendly',
       format: 'singles',
       surface: (defaultSurface as Surface) || 'hard',
@@ -476,6 +477,12 @@ export default function LogMatchPage() {
       setError('Please enter at least one opponent name.')
       return
     }
+    // Belt-and-braces future-date guard (the <input max=...> handles the
+    // picker but not typed input).
+    if (manualForm.date > localToday()) {
+      setError("Match date can't be in the future.")
+      return
+    }
 
     // Check for ambiguous names before saving
     const ambiguities = detectAmbiguousNames(
@@ -695,6 +702,7 @@ function ConfirmationCard({
           <input
             type="date"
             value={match.date}
+            max={localToday()}
             onChange={e => update({ date: e.target.value })}
             className="input-field"
           />
@@ -944,7 +952,7 @@ function ManualForm({
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         {/* Date */}
         <Field label="Date">
-          <input type="date" value={form.date} onChange={e => update({ date: e.target.value })} className="input-field" />
+          <input type="date" value={form.date} max={localToday()} onChange={e => update({ date: e.target.value })} className="input-field" />
         </Field>
 
         {/* Match Type */}
