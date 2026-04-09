@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { ParsedMatch } from './anthropic'
-import { enqueueMatch, claimPending, releasePending, removeFromQueue } from './offlineQueue'
+import { enqueueMatch, claimPending, releasePending, removeFromQueue, getPendingCount } from './offlineQueue'
+import { logEvent, toMatchTypeDim } from './analytics'
 
 // Module-level lock: blocks same-tab concurrent sync calls (the common
 // case: `online` event firing while a manual click is in flight, or a
@@ -52,6 +53,10 @@ export async function saveMatch(
 
   if (!navigator.onLine) {
     await enqueueMatch(payload)
+    logEvent({
+      name: 'match_queued_offline',
+      props: { match_type: toMatchTypeDim(parsed.matchType) },
+    })
     return { matchId: 'pending-' + Date.now(), newPlayers: [], newLeagues: [] }
   }
 
@@ -78,6 +83,9 @@ export async function syncPendingMatches(): Promise<{ synced: number; failed: nu
 
   let synced = 0
   let failed = 0
+  // Snapshot queue depth *before* we drain it so the analytics event can
+  // report backlog pressure. Reading after-the-fact would always show 0.
+  const pendingBefore = await getPendingCount()
 
   try {
     // Layer 2: atomic IDB claim. In a multi-tab scenario, only one tab's
@@ -108,6 +116,15 @@ export async function syncPendingMatches(): Promise<{ synced: number; failed: nu
     }
   } finally {
     syncInProgress = false
+  }
+
+  // Only emit if we actually attempted work — skipping a no-op sync keeps
+  // the dashboard signal clean (online events fire often even when queue empty).
+  if (pendingBefore > 0) {
+    logEvent({
+      name: 'offline_sync_completed',
+      props: { synced, failed, pending_before: pendingBefore },
+    })
   }
 
   return { synced, failed }

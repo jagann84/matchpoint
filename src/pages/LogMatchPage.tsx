@@ -8,6 +8,7 @@ import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
+import { logEvent, categorizeError, toMatchTypeDim, toSurfaceDim, toFormatDim } from '../lib/analytics'
 
 export default function LogMatchPage() {
   const { user } = useAuth()
@@ -124,13 +125,28 @@ export default function LogMatchPage() {
     setParsing(true)
     setDuplicateWarning(false)
 
+    let result: Awaited<ReturnType<typeof parseMatchInput>>
     try {
-      const result = await parseMatchInput(
-        input.trim(),
-        players.map(p => p.name),
-        leagues.map(l => l.name),
-        defaultSurface, defaultMatchType,
-      )
+      // Isolate parse errors from save errors so analytics can tell them apart.
+      // A parse failure is usually a model/API problem; a save failure is
+      // usually a DB/network problem. Bucketing them together would hide both.
+      try {
+        result = await parseMatchInput(
+          input.trim(),
+          players.map(p => p.name),
+          leagues.map(l => l.name),
+          defaultSurface, defaultMatchType,
+        )
+      } catch (parseErr) {
+        logEvent({
+          name: 'match_parse_failed',
+          props: {
+            error_category: categorizeError(parseErr),
+            input_length: input.trim().length,
+          },
+        })
+        throw parseErr
+      }
 
       // Check all matches for ambiguous player names
       const allAmbiguities: AmbiguousName[] = []
@@ -152,6 +168,11 @@ export default function LogMatchPage() {
           if (seen.has(key)) return false
           seen.add(key)
           return true
+        })
+
+        logEvent({
+          name: 'match_disambiguation_shown',
+          props: { ambiguity_count: unique.length },
         })
 
         setDisambiguationData({ ambiguities: unique, matches: result.matches })
@@ -188,6 +209,13 @@ export default function LogMatchPage() {
           user!.id, match.date, match.opponentNames, match.sets, players
         )
         if (isDup) {
+          logEvent({
+            name: 'match_duplicate_detected',
+            props: {
+              match_type: toMatchTypeDim(match.matchType),
+              surface: toSurfaceDim(match.surface),
+            },
+          })
           // Move to confirmation with duplicate warning
           match.ambiguities = [...match.ambiguities, 'This looks like a duplicate match (same date, opponent, and score). Save anyway?']
           match.confidence = 'medium'
@@ -196,6 +224,17 @@ export default function LogMatchPage() {
         }
 
         const res = await saveMatch(user!.id, match, players, leagues, input.trim())
+        logEvent({
+          name: 'match_saved',
+          props: {
+            match_type: toMatchTypeDim(match.matchType),
+            surface: toSurfaceDim(match.surface),
+            format: toFormatDim(match.format),
+            is_competitive: !!match.isCompetitive,
+            confidence: match.confidence,
+            source: 'freeform',
+          },
+        })
         savedCount++
         if (match.result === 'win' || match.result === 'walkover') wins++
         else losses++
@@ -232,6 +271,10 @@ export default function LogMatchPage() {
         setInput('')
       }
     } catch (err) {
+      logEvent({
+        name: 'match_save_failed',
+        props: { error_category: categorizeError(err), source: 'freeform' },
+      })
       setError(err instanceof Error ? err.message : 'Something went wrong')
     }
 
@@ -241,6 +284,17 @@ export default function LogMatchPage() {
   const handleConfirmSave = async (match: ParsedMatch) => {
     try {
       const res = await saveMatch(user!.id, match, players, leagues, input.trim())
+      logEvent({
+        name: 'match_saved',
+        props: {
+          match_type: toMatchTypeDim(match.matchType),
+          surface: toSurfaceDim(match.surface),
+          format: toFormatDim(match.format),
+          is_competitive: !!match.isCompetitive,
+          confidence: match.confidence,
+          source: 'confirmation',
+        },
+      })
       await loadContext()
 
       const scoreStr = match.sets.length > 0
@@ -259,7 +313,11 @@ export default function LogMatchPage() {
         setPendingMatches([])
         setInput('')
       }
-    } catch {
+    } catch (err) {
+      logEvent({
+        name: 'match_save_failed',
+        props: { error_category: categorizeError(err), source: 'confirmation' },
+      })
       showToast('Failed to save match', 'error')
     }
   }
@@ -314,18 +372,46 @@ export default function LogMatchPage() {
     for (const match of highConfidence) {
       const isDup = await checkDuplicate(user!.id, match.date, match.opponentNames, match.sets, players)
       if (isDup) {
+        logEvent({
+          name: 'match_duplicate_detected',
+          props: {
+            match_type: toMatchTypeDim(match.matchType),
+            surface: toSurfaceDim(match.surface),
+          },
+        })
         match.ambiguities = [...match.ambiguities, 'This looks like a duplicate match (same date, opponent, and score). Save anyway?']
         match.confidence = 'medium'
         needsConfirm.push(match)
         continue
       }
 
-      const res = await saveMatch(user!.id, match, players, leagues, input.trim())
-      savedCount++
-      if (match.result === 'win' || match.result === 'walkover') wins++
-      else losses++
-      allNewPlayers.push(...res.newPlayers)
-      allNewLeagues.push(...res.newLeagues)
+      try {
+        const res = await saveMatch(user!.id, match, players, leagues, input.trim())
+        logEvent({
+          name: 'match_saved',
+          props: {
+            match_type: toMatchTypeDim(match.matchType),
+            surface: toSurfaceDim(match.surface),
+            format: toFormatDim(match.format),
+            is_competitive: !!match.isCompetitive,
+            confidence: match.confidence,
+            source: 'freeform',
+          },
+        })
+        savedCount++
+        if (match.result === 'win' || match.result === 'walkover') wins++
+        else losses++
+        allNewPlayers.push(...res.newPlayers)
+        allNewLeagues.push(...res.newLeagues)
+      } catch (err) {
+        logEvent({
+          name: 'match_save_failed',
+          props: { error_category: categorizeError(err), source: 'freeform' },
+        })
+        showToast('Failed to save one of the matches', 'error')
+        // Continue trying the rest — a single DB hiccup shouldn't drop the
+        // whole batch the user already disambiguated.
+      }
     }
 
     if (savedCount > 0) {
@@ -377,6 +463,10 @@ export default function LogMatchPage() {
     )
 
     if (ambiguities.length > 0) {
+      logEvent({
+        name: 'match_disambiguation_shown',
+        props: { ambiguity_count: ambiguities.length },
+      })
       setDisambiguationData({ ambiguities, matches: [manualForm] })
       setDisambiguating(true)
       return
@@ -384,6 +474,17 @@ export default function LogMatchPage() {
 
     try {
       const res = await saveMatch(user!.id, manualForm, players, leagues)
+      logEvent({
+        name: 'match_saved',
+        props: {
+          match_type: toMatchTypeDim(manualForm.matchType),
+          surface: toSurfaceDim(manualForm.surface),
+          format: toFormatDim(manualForm.format),
+          is_competitive: !!manualForm.isCompetitive,
+          confidence: 'high',
+          source: 'manual',
+        },
+      })
       await loadContext()
 
       const scoreStr = manualForm.sets.length > 0
@@ -392,7 +493,11 @@ export default function LogMatchPage() {
       showToast(`✓ Match saved: ${scoreStr}`, 'success', res.matchId)
       setShowManual(false)
       setManualForm(createEmptyForm())
-    } catch {
+    } catch (err) {
+      logEvent({
+        name: 'match_save_failed',
+        props: { error_category: categorizeError(err), source: 'manual' },
+      })
       showToast('Failed to save match', 'error')
     }
   }
