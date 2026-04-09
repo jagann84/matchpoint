@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import {
   ArrowLeft, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
 } from 'lucide-react'
-import { SURFACES, MATCH_TYPES } from '../lib/constants'
+import { SURFACES, MATCH_TYPES, RESULTS, isSurface, isMatchType, isResult } from '../lib/constants'
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -66,6 +66,24 @@ export default function MatchDetailPage() {
 
   const handleSave = async () => {
     if (!match || !id) return
+
+    // Enum guard: the UI only ever lets the user pick valid values via
+    // buttons, but something could have mutated state between render and
+    // click (browser extensions, stale form state, future code changes).
+    // Refuse to send an unknown value to the DB — a silent corruption
+    // would cause weird display bugs weeks later that are hard to trace.
+    if (!isResult(editForm.result)) {
+      showToast(`Invalid result value: "${editForm.result}"`, 'error')
+      return
+    }
+    if (!isSurface(editForm.surface)) {
+      showToast(`Invalid surface value: "${editForm.surface}"`, 'error')
+      return
+    }
+    if (!isMatchType(editForm.match_type)) {
+      showToast(`Invalid match type: "${editForm.match_type}"`, 'error')
+      return
+    }
 
     // Validate: non-walkover matches need at least one set
     if (editForm.result !== 'walkover' && editForm.sets.length === 0) {
@@ -228,17 +246,17 @@ export default function MatchDetailPage() {
           {/* Result */}
           <EditField label="Result">
             <div className="flex gap-2">
-              {['win', 'loss', 'walkover'].map(r => (
+              {RESULTS.map(r => (
                 <button
-                  key={r}
-                  onClick={() => setEditForm(prev => ({ ...prev, result: r }))}
+                  key={r.value}
+                  onClick={() => setEditForm(prev => ({ ...prev, result: r.value }))}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    editForm.result === r
-                      ? r === 'win' ? 'bg-green-700 text-white' : r === 'loss' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    editForm.result === r.value
+                      ? r.value === 'win' ? 'bg-green-700 text-white' : r.value === 'loss' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                  {r.label}
                 </button>
               ))}
             </div>
