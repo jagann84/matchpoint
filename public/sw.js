@@ -1,4 +1,15 @@
-const CACHE_NAME = 'matchpoint-v1'
+// BUILD_ID is replaced at build time by the inline Vite plugin in
+// vite.config.ts. Two purposes:
+//   1. It gives sw.js a byte-different body on every build, so the
+//      browser actually notices there's a new service worker to
+//      install. Without this, sw.js is identical across deploys and
+//      the browser never updates it — users get stuck forever.
+//   2. It's baked into CACHE_NAME below so old caches get cleaned up
+//      on activate.
+const BUILD_ID = '__BUILD_ID__'
+const CACHE_NAME = 'matchpoint-' + BUILD_ID
+const API_CACHE_NAME = 'matchpoint-api-' + BUILD_ID
+
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',
@@ -7,19 +18,38 @@ const SHELL_ASSETS = [
   '/icons/icon-512.svg',
 ]
 
-// Install: cache shell assets
+// Install: cache shell assets. NOTE: we deliberately do NOT call
+// skipWaiting() here. We want the new SW to sit in the 'waiting' state
+// so the app can show an "update available" prompt and let the user
+// decide when to activate it. Auto-activating mid-session can cause
+// old-page-running-under-new-SW weirdness.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
   )
-  self.skipWaiting()
 })
 
-// Activate: clean old caches
+// The app posts { type: 'SKIP_WAITING' } when the user clicks "Reload"
+// on the update prompt. That's the only path to activation for an
+// update — first-time installs go straight to active because there's
+// no previous SW to wait for.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
+// Activate: clean old caches. Because CACHE_NAME includes BUILD_ID,
+// every deploy naturally produces a new cache namespace, and any
+// cache whose name doesn't match the current pair gets purged.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME && k !== 'matchpoint-api-v1').map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k !== CACHE_NAME && k !== API_CACHE_NAME)
+          .map((k) => caches.delete(k))
+      )
     )
   )
   self.clients.claim()
@@ -42,7 +72,7 @@ self.addEventListener('fetch', (event) => {
         .then(response => {
           if (response.ok) {
             const clone = response.clone()
-            caches.open('matchpoint-api-v1').then(cache => cache.put(request, clone))
+            caches.open(API_CACHE_NAME).then(cache => cache.put(request, clone))
           }
           return response
         })

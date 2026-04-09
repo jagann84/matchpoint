@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import AppLayout from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
 import OfflineBanner from './components/OfflineBanner'
+import UpdatePrompt from './components/UpdatePrompt'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Analytics } from '@vercel/analytics/react'
 
@@ -107,6 +108,7 @@ export default function App() {
         <AuthProvider>
           <ToastContainer />
           <OfflineBanner />
+          <UpdatePrompt />
           <SpeedInsights />
           <Analytics />
           <AppRoutes />
