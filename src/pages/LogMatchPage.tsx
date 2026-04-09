@@ -14,6 +14,14 @@ export default function LogMatchPage() {
   const { user } = useAuth()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Synchronous double-submit guard. A ref (not state) because ref
+  // updates are visible to the very next line of code, while state
+  // updates are batched until the next render — which is exactly the
+  // window a fast double-tap on mobile can slip through. One ref
+  // serves all four save pathways (freeform, confirmation, manual,
+  // post-disambiguation) since the user can only be in one at a time.
+  const submittingRef = useRef(false)
+
   // Context data
   const [hasApiKey, setHasApiKey] = useState(false)
   const [players, setPlayers] = useState<{ id: string; name: string }[]>([])
@@ -112,6 +120,7 @@ export default function LogMatchPage() {
   }, [])
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return
     if (!input.trim()) {
       setError('Please describe your match before submitting.')
       return
@@ -121,6 +130,7 @@ export default function LogMatchPage() {
       return
     }
 
+    submittingRef.current = true
     setError('')
     setParsing(true)
     setDuplicateWarning(false)
@@ -276,12 +286,15 @@ export default function LogMatchPage() {
         props: { error_category: categorizeError(err), source: 'freeform' },
       })
       setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setParsing(false)
+      submittingRef.current = false
     }
-
-    setParsing(false)
   }
 
   const handleConfirmSave = async (match: ParsedMatch) => {
+    if (submittingRef.current) return
+    submittingRef.current = true
     try {
       const res = await saveMatch(user!.id, match, players, leagues, input.trim())
       logEvent({
@@ -319,6 +332,8 @@ export default function LogMatchPage() {
         props: { error_category: categorizeError(err), source: 'confirmation' },
       })
       showToast('Failed to save match', 'error')
+    } finally {
+      submittingRef.current = false
     }
   }
 
@@ -332,7 +347,10 @@ export default function LogMatchPage() {
 
   const handleDisambiguationResolved = async (resolutions: Map<string, string>) => {
     if (!disambiguationData) return
+    if (submittingRef.current) return
+    submittingRef.current = true
 
+    try {
     // Apply resolutions to all matches
     const resolvedMatches = disambiguationData.matches.map(match => {
       const updated = { ...match }
@@ -442,6 +460,9 @@ export default function LogMatchPage() {
     } else {
       setInput('')
     }
+    } finally {
+      submittingRef.current = false
+    }
   }
 
   const handleDisambiguationCancel = () => {
@@ -450,6 +471,7 @@ export default function LogMatchPage() {
   }
 
   const handleManualSave = async () => {
+    if (submittingRef.current) return
     if (manualForm.opponentNames[0] === '' && manualForm.result !== 'walkover') {
       setError('Please enter at least one opponent name.')
       return
@@ -472,6 +494,7 @@ export default function LogMatchPage() {
       return
     }
 
+    submittingRef.current = true
     try {
       const res = await saveMatch(user!.id, manualForm, players, leagues)
       logEvent({
@@ -499,6 +522,8 @@ export default function LogMatchPage() {
         props: { error_category: categorizeError(err), source: 'manual' },
       })
       showToast('Failed to save match', 'error')
+    } finally {
+      submittingRef.current = false
     }
   }
 
