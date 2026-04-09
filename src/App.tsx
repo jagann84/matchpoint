@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ToastContainer } from './components/Toast'
@@ -52,13 +52,28 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={isMobile() ? '/log-match' : '/dashboard'} replace />
   }
 
   return <>{children}</>
 }
 
+// On mobile (≤768px) the user's primary action is logging a match quickly,
+// so we land them on /log-match. On larger screens the dashboard overview
+// is more useful as a home page. This only affects the default route ("/")
+// and the post-login redirect — explicitly navigating to /dashboard on
+// mobile still works fine.
+const isMobile = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(max-width: 768px)').matches
+
 function AppRoutes() {
+  // useMemo so the check runs once per mount, not on every render. Screen
+  // size doesn't change within a single page lifecycle (and if the user
+  // rotates their phone, the app re-renders but the breakpoint is generous
+  // enough that a landscape phone is still < 768px in most cases).
+  const homePath = useMemo(() => isMobile() ? '/log-match' : '/dashboard', [])
+
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -85,7 +100,7 @@ function AppRoutes() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to={homePath} replace />} />
       <Route
         path="*"
         element={
