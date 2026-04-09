@@ -120,51 +120,32 @@ export async function checkDuplicate(
   sets: { myGames: number; opponentGames: number }[],
   existingPlayers: { id: string; name: string }[],
 ): Promise<boolean> {
-  // Find opponent IDs
+  // Resolve opponent names to IDs against the locally-known players list.
+  // If an opponent name doesn't match an existing player, they're new —
+  // which means this match can't be a duplicate of anything, so we bail
+  // early before even touching the network.
   const oppIds = opponentNames
     .map(n => existingPlayers.find(p => p.name.toLowerCase() === n.toLowerCase())?.id)
     .filter(Boolean) as string[]
 
-  if (oppIds.length === 0) return false
+  if (oppIds.length === 0 || oppIds.length !== opponentNames.length) return false
 
-  // Find matches on same date
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('date', date)
+  // Single RPC replaces the old N+1 pattern (find matches → fetch opponents
+  // per match → fetch sets per match). The function handles opponent-set
+  // equality and per-set score comparison server-side in one query.
+  const { data, error } = await supabase.rpc('check_duplicate_match', {
+    p_user_id: userId,
+    p_date: date,
+    p_opponent_ids: oppIds,
+    p_sets: sets.map(s => ({ my_games: s.myGames, opponent_games: s.opponentGames })),
+  })
 
-  if (!matches || matches.length === 0) return false
-
-  // Check if any match has the same opponents
-  for (const match of matches) {
-    const { data: opponents } = await supabase
-      .from('match_opponents')
-      .select('player_id')
-      .eq('match_id', match.id)
-
-    if (!opponents) continue
-
-    const matchOppIds = opponents.map(o => o.player_id)
-    const sameOpponents = oppIds.length === matchOppIds.length &&
-      oppIds.every(id => matchOppIds.includes(id))
-
-    if (sameOpponents) {
-      // Check if score also matches
-      const { data: matchSets } = await supabase
-        .from('match_sets')
-        .select('my_games, opponent_games')
-        .eq('match_id', match.id)
-        .order('set_number')
-
-      if (matchSets && matchSets.length === sets.length) {
-        const sameScore = matchSets.every(
-          (ms, i) => ms.my_games === sets[i].myGames && ms.opponent_games === sets[i].opponentGames
-        )
-        if (sameScore) return true
-      }
-    }
+  if (error) {
+    // Fail open: a broken duplicate check should never block a legit save.
+    // Worst case the user confirms a "duplicate" that isn't one.
+    console.error('[checkDuplicate] RPC failed, falling through:', error)
+    return false
   }
 
-  return false
+  return data === true
 }
