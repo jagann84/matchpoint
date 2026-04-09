@@ -1,6 +1,12 @@
 import { supabase } from './supabase'
 import type { ParsedMatch } from './anthropic'
-import { enqueueMatch, dequeueAll, removeFromQueue } from './offlineQueue'
+import { enqueueMatch, claimPending, releasePending, removeFromQueue } from './offlineQueue'
+
+// Module-level lock: blocks same-tab concurrent sync calls (the common
+// case: `online` event firing while a manual click is in flight, or a
+// component unmount/remount during sync). Cross-tab safety is handled
+// inside IndexedDB via claimPending's readwrite transaction.
+let syncInProgress = false
 
 interface SaveMatchResult {
   matchId: string
@@ -62,26 +68,48 @@ export async function saveMatch(
   }
 }
 
-export async function syncPendingMatches(): Promise<{ synced: number; failed: number }> {
-  const pending = await dequeueAll()
+export async function syncPendingMatches(): Promise<{ synced: number; failed: number; skipped?: boolean }> {
+  // Layer 1: in-memory lock. Second caller in the same tab bails out
+  // immediately — no toast, no error, caller sees synced=0.
+  if (syncInProgress) {
+    return { synced: 0, failed: 0, skipped: true }
+  }
+  syncInProgress = true
+
   let synced = 0
   let failed = 0
-  for (const item of pending) {
-    let success = false
-    // Retry up to 3 times with backoff
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { error } = await supabase.rpc('save_match_transaction', { payload: item.payload })
-      if (!error) {
-        await removeFromQueue(item.id)
-        synced++
-        success = true
-        break
+
+  try {
+    // Layer 2: atomic IDB claim. In a multi-tab scenario, only one tab's
+    // readwrite transaction will successfully mark these rows as 'syncing';
+    // the other tab will get back an empty (or smaller) list.
+    const pending = await claimPending()
+
+    for (const item of pending) {
+      let success = false
+      // Retry up to 3 times with exponential backoff (500ms, 1s, 2s).
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { error } = await supabase.rpc('save_match_transaction', { payload: item.payload })
+        if (!error) {
+          await removeFromQueue(item.id)
+          synced++
+          success = true
+          break
+        }
+        if (attempt < 2) await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)))
       }
-      // Wait before retry (500ms, 1s, 2s)
-      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)))
+      if (!success) {
+        // Release the claim so the next sync attempt (user click, next
+        // `online` event) can retry this item instead of waiting 60s for
+        // the stale-claim recovery timeout.
+        await releasePending(item.id)
+        failed++
+      }
     }
-    if (!success) failed++
+  } finally {
+    syncInProgress = false
   }
+
   return { synced, failed }
 }
 
