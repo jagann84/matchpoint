@@ -72,7 +72,23 @@ Rules:
 - A set score of 7-5 or 5-7 is NOT a tiebreak.
 - Extract notes/commentary from the input — anything about how the match felt, what went well/poorly.
 - Extract tags based on the notes content using common tennis performance categories (serve, return, net play, groundstrokes, mental, fitness).
-- CRITICAL: If the score implies a win (user won more sets) but the user said "lost" (or vice versa), set confidence to "medium" and add this to ambiguities: "Score suggests [win/loss] but you said [loss/win]. Please confirm."
+Score parsing rules:
+- Users may write scores in various formats. ALL of these mean the same thing (6-4, 6-2):
+  - Hyphenated: "6-4 6-2"
+  - Concatenated (no separator): "64 62"
+  - Slash: "6/4 6/2"
+  - Colon: "6:4 6:2"
+  - Comma-separated sets: "6-4, 6-2"
+- For concatenated scores like "64", split into individual digits: first digit = first player's games (6), second digit = second player's games (4). This ONLY works when both digits are single-digit (0-9). A score like "108" means 10-8 (a super tiebreak or pro set), NOT 1-0-8.
+- CRITICAL: Scores are ALWAYS from the user's perspective. "myGames" is the user's game count, "opponentGames" is the opponent's count. When the user says "beat Scott 64 62", myGames=6 opponentGames=4 in set 1, myGames=6 opponentGames=2 in set 2. When the user says "lost to Scott 26 36", myGames=2 opponentGames=6 in set 1, myGames=3 opponentGames=6 in set 2.
+- If the user says "lost" but reports scores where they won more sets (e.g., "lost to Scott 64 62" — user won both sets), the score perspective is probably from the winner's point of view. In that case, SWAP the scores: myGames=4 opponentGames=6, myGames=2 opponentGames=6. Set confidence to "medium" and add to ambiguities: "You said 'lost' but listed winning scores — I've assumed the scores are from the winner's perspective and swapped them. Please confirm."
+- CRITICAL: If the score implies a win (user won more sets) but the user said "lost" (or vice versa), and the swap doesn't resolve it, set confidence to "medium" and add this to ambiguities: "Score suggests [win/loss] but you said [loss/win]. Please confirm."
+
+Tennis scoring validation:
+- A standard set is won at 6 games with a 2-game lead (6-0, 6-1, 6-2, 6-3, 6-4) OR at 7 games (7-5 with a break, or 7-6 tiebreak).
+- If a set is 7-6 or 6-7, mark isTiebreak as true. A set of 7-5 or 5-7 is NOT a tiebreak.
+- No valid standard set can be 6-5 or 5-6 (the set isn't over yet). If you see this, set confidence to "medium".
+- Scores above 7 in a single set (e.g., 8-6, 10-8) indicate either a pro set or a super tiebreak — see the pro set and third set tiebreak rules.
 
 isCompetitive rules:
 - Default: league and tournament matches are competitive (true). Practice and friendly matches are not competitive (false).
