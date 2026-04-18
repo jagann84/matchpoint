@@ -24,6 +24,7 @@ export default function LogMatchPage() {
   const submittingRef = useRef(false)
 
   // Context data
+  const [contextLoaded, setContextLoaded] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [players, setPlayers] = useState<{ id: string; name: string }[]>([])
   const [leagues, setLeagues] = useState<{ id: string; name: string }[]>([])
@@ -94,6 +95,7 @@ export default function LogMatchPage() {
     }
     if (playersRes.data) setPlayers(playersRes.data)
     if (leaguesRes.data) setLeagues(leaguesRes.data)
+    setContextLoaded(true)
   }, [user])
 
   useEffect(() => {
@@ -639,7 +641,7 @@ export default function LogMatchPage() {
         </div>
       </div>
 
-      {!hasApiKey && (
+      {contextLoaded && !hasApiKey && (
         <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
           Set up your Anthropic API key in Settings to enable smart match logging.
         </div>
