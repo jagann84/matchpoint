@@ -5,6 +5,7 @@ import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQuer
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
 import { Loader2, TrendingUp, TrendingDown, Minus, Trophy, Target, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import ErrorRetry from '../components/ErrorRetry'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, ReferenceLine,
@@ -28,18 +29,24 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const [allMatches, setAllMatches] = useState<MatchWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [period, setPeriod] = useState<TimePeriod>('all')
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()))
   const [goal, setGoal] = useState<Goal | null>(null)
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [matches, goalRes] = await Promise.all([
-      fetchMatchesWithDetails(user.id),
-      supabase.from('goals').select('*').eq('user_id', user.id).eq('is_active', true).single(),
-    ])
-    setAllMatches(matches)
-    if (goalRes.data) setGoal(goalRes.data)
+    setLoadError(false)
+    try {
+      const [matches, goalRes] = await Promise.all([
+        fetchMatchesWithDetails(user.id),
+        supabase.from('goals').select('*').eq('user_id', user.id).eq('is_active', true).single(),
+      ])
+      setAllMatches(matches)
+      if (goalRes.data) setGoal(goalRes.data)
+    } catch {
+      setLoadError(true)
+    }
     setLoading(false)
   }, [user])
 
@@ -247,6 +254,17 @@ export default function DashboardPage() {
     return (
       <div className="p-4 md:p-8 flex items-center justify-center min-h-[50vh]">
         <Loader2 className="animate-spin text-green-600" size={32} />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-4 md:p-8">
+        <ErrorRetry
+          message="Couldn't load your dashboard. Check your connection and try again."
+          onRetry={loadData}
+        />
       </div>
     )
   }

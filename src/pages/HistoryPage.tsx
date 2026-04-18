@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, Filter, ChevronDown, ChevronUp, List, Search, X,
 } from 'lucide-react'
+import ErrorRetry from '../components/ErrorRetry'
 
 const PAGE_SIZE = 20
 
@@ -15,6 +16,7 @@ export default function HistoryPage() {
   const navigate = useNavigate()
   const [matches, setMatches] = useState<MatchWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -37,16 +39,21 @@ export default function HistoryPage() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [paginatedResult, playersRes, leaguesRes] = await Promise.all([
-      fetchMatchesPaginated(user.id, 0, PAGE_SIZE),
-      supabase.from('players').select('id, name').eq('user_id', user.id).order('name'),
-      supabase.from('leagues').select('id, name').eq('user_id', user.id).order('name'),
-    ])
-    setMatches(paginatedResult.matches)
-    setTotalCount(paginatedResult.total)
-    setHasMore(paginatedResult.matches.length < paginatedResult.total)
-    if (playersRes.data) setPlayers(playersRes.data)
-    if (leaguesRes.data) setLeagues(leaguesRes.data)
+    setLoadError(false)
+    try {
+      const [paginatedResult, playersRes, leaguesRes] = await Promise.all([
+        fetchMatchesPaginated(user.id, 0, PAGE_SIZE),
+        supabase.from('players').select('id, name').eq('user_id', user.id).order('name'),
+        supabase.from('leagues').select('id, name').eq('user_id', user.id).order('name'),
+      ])
+      setMatches(paginatedResult.matches)
+      setTotalCount(paginatedResult.total)
+      setHasMore(paginatedResult.matches.length < paginatedResult.total)
+      if (playersRes.data) setPlayers(playersRes.data)
+      if (leaguesRes.data) setLeagues(leaguesRes.data)
+    } catch {
+      setLoadError(true)
+    }
     setLoading(false)
   }, [user])
 
@@ -113,6 +120,17 @@ export default function HistoryPage() {
     return (
       <div className="p-4 md:p-8 flex items-center justify-center min-h-[50vh]">
         <Loader2 className="animate-spin text-green-600" size={32} />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-4 md:p-8">
+        <ErrorRetry
+          message="Couldn't load your match history. Check your connection and try again."
+          onRetry={loadData}
+        />
       </div>
     )
   }

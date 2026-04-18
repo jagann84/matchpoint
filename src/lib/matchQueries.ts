@@ -81,7 +81,8 @@ export async function fetchMatchesWithDetails(userId: string): Promise<MatchWith
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (error || !data) return []
+  if (error) throw new Error(error.message || 'Failed to load matches')
+  if (!data) return []
 
   return data.map(transformMatch)
 }
@@ -100,7 +101,8 @@ export async function fetchMatchesPaginated(
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  if (error || !data) return { matches: [], total: 0 }
+  if (error) throw new Error(error.message || 'Failed to load matches')
+  if (!data) return { matches: [], total: 0 }
 
   return { matches: data.map(transformMatch), total: count || 0 }
 }
