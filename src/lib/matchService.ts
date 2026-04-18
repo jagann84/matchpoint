@@ -130,6 +130,41 @@ export async function syncPendingMatches(): Promise<{ synced: number; failed: nu
   return { synced, failed }
 }
 
+// Post-match insights: contextual stats fetched in one DB round-trip
+// right after a save. Fails silently (returns null) since insights
+// are a nice-to-have — a broken insights query should never overshadow
+// a successful save.
+export interface PostMatchInsights {
+  h2h_wins: number
+  h2h_losses: number
+  h2h_total: number
+  streak_type: 'win' | 'loss' | 'none'
+  streak_count: number
+  surface: string
+  surface_wins: number
+  surface_total: number
+  surface_win_rate: number
+  total_matches: number
+}
+
+export async function fetchPostMatchInsights(
+  userId: string,
+  opponentIds: string[],
+  surface: string,
+): Promise<PostMatchInsights | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_post_match_insights', {
+      p_user_id: userId,
+      p_opponent_ids: opponentIds,
+      p_surface: surface,
+    })
+    if (error || !data) return null
+    return data as PostMatchInsights
+  } catch {
+    return null
+  }
+}
+
 export async function checkDuplicate(
   userId: string,
   date: string,

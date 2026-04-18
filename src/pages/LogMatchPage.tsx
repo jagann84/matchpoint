@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { parseMatchInput, type ParsedMatch } from '../lib/anthropic'
-import { saveMatch, checkDuplicate } from '../lib/matchService'
+import { saveMatch, checkDuplicate, fetchPostMatchInsights, type PostMatchInsights } from '../lib/matchService'
 import { detectAmbiguousNames, type AmbiguousName } from '../lib/playerMatching'
 import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
+import PostMatchInsightsCard from '../components/PostMatchInsightsCard'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
 import { logEvent, categorizeError, toMatchTypeDim, toSurfaceDim, toFormatDim } from '../lib/analytics'
@@ -54,6 +55,48 @@ export default function LogMatchPage() {
 
   // Saved locations for autocomplete
   const [savedLocations, setSavedLocations] = useState<string[]>([])
+
+  // Post-match insights card
+  const [insightsData, setInsightsData] = useState<{
+    insights: PostMatchInsights
+    opponentName: string
+    result: string
+    scoreStr: string
+  } | null>(null)
+
+  // Helper: after a single-match save, try to fetch contextual insights.
+  // Resolves opponent names → IDs from the (freshly reloaded) players list,
+  // then calls the RPC. Returns true if insights were shown, false otherwise.
+  // Never throws — insights are a nice-to-have, never worth blocking.
+  const tryShowInsights = async (
+    match: ParsedMatch,
+    freshPlayers: { id: string; name: string }[],
+  ): Promise<boolean> => {
+    try {
+      const opponentIds = match.opponentNames
+        .map(n => freshPlayers.find(p => p.name.toLowerCase() === n.toLowerCase())?.id)
+        .filter(Boolean) as string[]
+
+      if (opponentIds.length === 0) return false
+
+      const insights = await fetchPostMatchInsights(user!.id, opponentIds, match.surface)
+      if (!insights) return false
+
+      const scoreStr = match.sets.length > 0
+        ? match.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
+        : 'W/O'
+
+      setInsightsData({
+        insights,
+        opponentName: match.opponentNames.join(' & '),
+        result: match.result,
+        scoreStr,
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
 
   function createEmptyForm(): ParsedMatch {
     return {
@@ -257,31 +300,48 @@ export default function LogMatchPage() {
 
       if (savedCount > 0) {
         await loadContext() // Refresh player/league lists
-        const opponentStr = highConfidence.length === 1
-          ? `vs ${highConfidence[0].opponentNames.join(' & ')}`
-          : ''
-        const scoreStr = highConfidence.length === 1 && highConfidence[0].sets.length > 0
-          ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
-          : ''
-        const resultStr = highConfidence.length === 1
-          ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
-          : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
-        let msg = savedCount === 1
-          ? `${resultStr} ${opponentStr}${scoreStr}`
-          : resultStr
+        // Single match: show insights card instead of a toast.
+        // We re-fetch the players list because loadContext updates
+        // state asynchronously — the ref'd `players` may be stale.
+        let showedInsights = false
+        if (savedCount === 1 && needsConfirm.length === 0) {
+          const freshPlayers = await supabase
+            .from('players').select('id, name').eq('user_id', user!.id)
+          showedInsights = await tryShowInsights(
+            highConfidence[0],
+            freshPlayers.data ?? players,
+          )
+        }
 
-        if (allNewPlayers.length > 0) msg += ` · New: ${allNewPlayers.join(', ')}`
-        if (allNewLeagues.length > 0) msg += ` · New league: ${allNewLeagues.join(', ')}`
+        // Fall back to toast if insights didn't fire, or for batch saves
+        if (!showedInsights) {
+          const opponentStr = highConfidence.length === 1
+            ? `vs ${highConfidence[0].opponentNames.join(' & ')}`
+            : ''
+          const scoreStr = highConfidence.length === 1 && highConfidence[0].sets.length > 0
+            ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
+            : ''
+          const resultStr = highConfidence.length === 1
+            ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
+            : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
-        showToast(msg, 'success')
+          let msg = savedCount === 1
+            ? `${resultStr} ${opponentStr}${scoreStr}`
+            : resultStr
+
+          if (allNewPlayers.length > 0) msg += ` · New: ${allNewPlayers.join(', ')}`
+          if (allNewLeagues.length > 0) msg += ` · New league: ${allNewLeagues.join(', ')}`
+
+          showToast(msg, 'success')
+          setInput('')
+        }
+        // If insights showed, keep the input until the card is dismissed
       }
 
       if (needsConfirm.length > 0) {
         setPendingMatches(needsConfirm)
         setCurrentConfirmIdx(0)
-      } else {
-        setInput('')
       }
     } catch (err) {
       logEvent({
@@ -313,21 +373,30 @@ export default function LogMatchPage() {
       })
       await loadContext()
 
-      const scoreStr = match.sets.length > 0
-        ? match.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
-        : 'W/O'
-      const resultStr = match.result === 'win' ? '✓ Win' : match.result === 'walkover' ? '✓ W/O' : '✗ Loss'
-      let msg = `${resultStr} vs ${match.opponentNames.join(' & ')} ${scoreStr}`
-      if (res.newPlayers.length > 0) msg += ` · New: ${res.newPlayers.join(', ')}`
-
-      showToast(msg, 'success', res.matchId)
-
       // Move to next or finish
       if (currentConfirmIdx < pendingMatches.length - 1) {
         setCurrentConfirmIdx(prev => prev + 1)
+        // Toast for intermediate matches in a batch
+        const scoreStr = match.sets.length > 0
+          ? match.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
+          : 'W/O'
+        showToast(`✓ Saved vs ${match.opponentNames.join(' & ')} ${scoreStr}`, 'success', res.matchId)
       } else {
+        // Last (or only) match in the batch — try insights
         setPendingMatches([])
-        setInput('')
+        const freshPlayers = await supabase
+          .from('players').select('id, name').eq('user_id', user!.id)
+        const showedInsights = await tryShowInsights(match, freshPlayers.data ?? players)
+        if (!showedInsights) {
+          const scoreStr = match.sets.length > 0
+            ? match.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
+            : 'W/O'
+          const resultStr = match.result === 'win' ? '✓ Win' : match.result === 'walkover' ? '✓ W/O' : '✗ Loss'
+          let msg = `${resultStr} vs ${match.opponentNames.join(' & ')} ${scoreStr}`
+          if (res.newPlayers.length > 0) msg += ` · New: ${res.newPlayers.join(', ')}`
+          showToast(msg, 'success', res.matchId)
+          setInput('')
+        }
       }
     } catch (err) {
       logEvent({
@@ -437,31 +506,43 @@ export default function LogMatchPage() {
 
     if (savedCount > 0) {
       await loadContext()
-      const opponentStr = highConfidence.length === 1
-        ? `vs ${highConfidence[0].opponentNames.join(' & ')}`
-        : ''
-      const scoreStr = highConfidence.length === 1 && highConfidence[0].sets.length > 0
-        ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
-        : ''
-      const resultStr = highConfidence.length === 1
-        ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
-        : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
-      let msg = savedCount === 1
-        ? `${resultStr} ${opponentStr}${scoreStr}`
-        : resultStr
+      let showedInsights = false
+      if (savedCount === 1 && needsConfirm.length === 0) {
+        const freshPlayers = await supabase
+          .from('players').select('id, name').eq('user_id', user!.id)
+        showedInsights = await tryShowInsights(
+          highConfidence[0],
+          freshPlayers.data ?? players,
+        )
+      }
 
-      if (allNewPlayers.length > 0) msg += ` · New: ${allNewPlayers.join(', ')}`
-      if (allNewLeagues.length > 0) msg += ` · New league: ${allNewLeagues.join(', ')}`
+      if (!showedInsights) {
+        const opponentStr = highConfidence.length === 1
+          ? `vs ${highConfidence[0].opponentNames.join(' & ')}`
+          : ''
+        const scoreStr = highConfidence.length === 1 && highConfidence[0].sets.length > 0
+          ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
+          : ''
+        const resultStr = highConfidence.length === 1
+          ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
+          : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
-      showToast(msg, 'success')
+        let msg = savedCount === 1
+          ? `${resultStr} ${opponentStr}${scoreStr}`
+          : resultStr
+
+        if (allNewPlayers.length > 0) msg += ` · New: ${allNewPlayers.join(', ')}`
+        if (allNewLeagues.length > 0) msg += ` · New league: ${allNewLeagues.join(', ')}`
+
+        showToast(msg, 'success')
+        setInput('')
+      }
     }
 
     if (needsConfirm.length > 0) {
       setPendingMatches(needsConfirm)
       setCurrentConfirmIdx(0)
-    } else {
-      setInput('')
     }
     } finally {
       submittingRef.current = false
@@ -519,11 +600,18 @@ export default function LogMatchPage() {
       })
       await loadContext()
 
-      const scoreStr = manualForm.sets.length > 0
-        ? manualForm.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
-        : 'W/O'
-      showToast(`✓ Match saved: ${scoreStr}`, 'success', res.matchId)
+      // Try insights before resetting the form
+      const freshPlayers = await supabase
+        .from('players').select('id, name').eq('user_id', user!.id)
+      const showedInsights = await tryShowInsights(manualForm, freshPlayers.data ?? players)
+
       setShowManual(false)
+      if (!showedInsights) {
+        const scoreStr = manualForm.sets.length > 0
+          ? manualForm.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
+          : 'W/O'
+        showToast(`✓ Match saved: ${scoreStr}`, 'success', res.matchId)
+      }
       setManualForm(createEmptyForm())
     } catch (err) {
       logEvent({
@@ -593,6 +681,22 @@ export default function LogMatchPage() {
       <p className="text-sm text-gray-500 mb-4">
         Describe your match and we'll parse it automatically.
       </p>
+
+      {/* Post-match insights card — shown after a successful save */}
+      {insightsData && (
+        <div className="mb-4">
+          <PostMatchInsightsCard
+            insights={insightsData.insights}
+            opponentName={insightsData.opponentName}
+            result={insightsData.result}
+            scoreStr={insightsData.scoreStr}
+            onDismiss={() => {
+              setInsightsData(null)
+              setInput('')
+            }}
+          />
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <textarea
