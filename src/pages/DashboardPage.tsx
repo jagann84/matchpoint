@@ -583,13 +583,35 @@ function ChartCard({
   title: string
   data: { name: string; winRate: number; total: number }[]
 }) {
+  // Scale chart height so bars don't compress when there are many entries.
+  // 48px per bar gives comfortable spacing; minimum 160px for 1-2 bars.
+  const chartHeight = Math.max(160, data.length * 48)
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
       <h2 className="text-sm font-semibold text-gray-900 mb-3">{title}</h2>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={data} barSize={32} layout="vertical">
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <BarChart data={data} barSize={28} layout="vertical">
           <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-          <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={80} className="capitalize" />
+          <YAxis
+            type="category"
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            width={120}
+            tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+              // Truncate long labels (>16 chars) with ellipsis to prevent
+              // wrapping that causes overlapping rows.
+              const label = payload.value.length > 16
+                ? payload.value.slice(0, 15) + '…'
+                : payload.value
+              return (
+                <text x={x} y={y} dy={4} textAnchor="end" fontSize={12} fill="#374151">
+                  {label}
+                </text>
+              )
+            }}
+          />
           <Tooltip
             formatter={(value: number, _name: string, props: { payload: { total: number } }) => [`${value}% (${props.payload.total} matches)`, 'Win Rate']}
             contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
