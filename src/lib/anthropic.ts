@@ -37,12 +37,32 @@ export async function parseMatchInput(
   defaultSurface: string,
   defaultMatchType: string,
 ): Promise<ParseResult> {
+  // Ensure the session token is fresh before calling the Edge Function.
+  // On mobile PWAs the browser may have been backgrounded long enough for
+  // the JWT to expire, while the Supabase auto-refresh timer (which runs
+  // on a setInterval) was paused by the OS.  A quick getSession() forces
+  // the client library to check the access-token expiry and transparently
+  // refresh it if needed — preventing a 401 from the Edge Function.
+  await supabase.auth.getSession()
+
   const { data, error } = await supabase.functions.invoke('parse-match', {
     body: { userInput, playerNames, leagueNames, defaultSurface, defaultMatchType },
   })
 
   if (error) {
-    throw new Error(error.message || 'Failed to parse match')
+    // supabase.functions.invoke wraps non-2xx responses in a FunctionsHttpError
+    // whose message is the generic "Edge Function returned a non-2xx status code".
+    // Surface something actionable instead.
+    const msg = error.message || ''
+    if (msg.includes('non-2xx')) {
+      // Try to extract the actual error from the response body
+      const body = typeof data === 'object' && data?.error ? data.error : null
+      if (body) {
+        throw new Error(body)
+      }
+      throw new Error('Session may have expired. Please try again — if it persists, sign out and back in.')
+    }
+    throw new Error(msg || 'Failed to parse match')
   }
 
   if (data?.error) {
