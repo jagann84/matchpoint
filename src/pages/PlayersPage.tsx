@@ -99,7 +99,8 @@ export default function PlayersPage() {
       const s = ensureStats(opp.player_id)
       s.totalMatches++
       if (match.result === 'win' || match.result === 'walkover') s.lossesAsOpponent++
-      else s.winsAsOpponent++
+      else if (match.result === 'loss') s.winsAsOpponent++
+      // ties count to totalMatches but not as a win or loss for either side
       if (!s.lastPlayed || match.date > s.lastPlayed) s.lastPlayed = match.date
     }
 
@@ -109,7 +110,8 @@ export default function PlayersPage() {
       const s = ensureStats(match.partner_id)
       s.totalMatches++
       if (match.result === 'win' || match.result === 'walkover') s.winsAsPartner++
-      else s.lossesAsPartner++
+      else if (match.result === 'loss') s.lossesAsPartner++
+      // ties count to totalMatches but not as a win or loss
       if (!s.lastPlayed || match.date > s.lastPlayed) s.lastPlayed = match.date
     }
 

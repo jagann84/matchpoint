@@ -25,9 +25,12 @@ export default function MatchList({ matches, onMatchClick, showPartner }: MatchL
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className={`text-xs font-bold w-5 ${
-              m.result === 'win' ? 'text-green-700' : m.result === 'walkover' ? 'text-blue-600' : 'text-red-600'
+              m.result === 'win' ? 'text-green-700' :
+              m.result === 'walkover' ? 'text-blue-600' :
+              m.result === 'tie' ? 'text-yellow-600' :
+              'text-red-600'
             }`}>
-              {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : 'L'}
+              {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : m.result === 'tie' ? 'T' : 'L'}
             </span>
             <span className="text-xs text-gray-500">
               {format(new Date(m.date), 'MMM d, yyyy')}

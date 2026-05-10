@@ -29,16 +29,17 @@ export default function PostMatchInsightsCard({
   onDismiss,
 }: Props) {
   const isWin = result === 'win' || result === 'walkover'
+  const isTie = result === 'tie'
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
       {/* Header — match result */}
-      <div className={`px-5 py-4 ${isWin ? 'bg-green-50' : 'bg-red-50'} flex items-center justify-between`}>
+      <div className={`px-5 py-4 ${isWin ? 'bg-green-50' : isTie ? 'bg-yellow-50' : 'bg-red-50'} flex items-center justify-between`}>
         <div>
           <div className="flex items-center gap-2">
-            <Trophy size={18} className={isWin ? 'text-green-600' : 'text-red-500'} />
-            <span className={`font-bold text-lg ${isWin ? 'text-green-700' : 'text-red-700'}`}>
-              {isWin ? 'Win' : 'Loss'} vs {opponentName}
+            <Trophy size={18} className={isWin ? 'text-green-600' : isTie ? 'text-yellow-600' : 'text-red-500'} />
+            <span className={`font-bold text-lg ${isWin ? 'text-green-700' : isTie ? 'text-yellow-700' : 'text-red-700'}`}>
+              {isWin ? 'Win' : isTie ? 'Tie' : 'Loss'} vs {opponentName}
             </span>
           </div>
           <p className="text-sm text-gray-600 mt-0.5">{scoreStr}</p>

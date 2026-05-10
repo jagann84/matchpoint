@@ -37,7 +37,7 @@ Schema:
       "location": "string or null",
       "leagueName": "string or null — name of the league or tournament if mentioned",
       "isCompetitive": boolean,
-      "result": "win" | "loss" | "walkover",
+      "result": "win" | "loss" | "tie" | "walkover",
       "opponentNames": ["string"],
       "partnerName": "string or null",
       "sets": [
@@ -64,8 +64,9 @@ Rules:
 - Resolve relative dates ("yesterday", "last Tuesday") against today's date.
 - If surface is not mentioned, use the default surface.
 - If match type is not mentioned, use the default match type.
-- "Won" or "beat" = result is "win". "Lost" = result is "loss". "Walkover", "no show", "didn't show" = result is "walkover".
+- "Won" or "beat" = result is "win". "Lost" = result is "loss". "Walkover", "no show", "didn't show" = result is "walkover". "Tied", "split sets", "drew" = result is "tie".
 - For walkovers, the sets array should be empty.
+- For ties, include all sets played (typically 1-1 split sets). A tie means no deciding set was played.
 - Detect pro sets (single set with games > 7 for the winner, e.g., 8-5, 10-4).
 - Detect 3rd set super tiebreaks (3rd set score like 10-7, 10-8 in a best-of-3).
 - If a set score is 7-6 or 6-7, mark isTiebreak as true.

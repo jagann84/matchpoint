@@ -516,6 +516,7 @@ export default function MatchDetailPage() {
           <div className={`rounded-xl p-5 mb-4 ${
             match.result === 'win' ? 'bg-green-50 border border-green-200' :
             match.result === 'walkover' ? 'bg-blue-50 border border-blue-200' :
+            match.result === 'tie' ? 'bg-yellow-50 border border-yellow-200' :
             'bg-red-50 border border-red-200'
           }`}>
             <div className="flex items-center justify-between">
@@ -523,9 +524,10 @@ export default function MatchDetailPage() {
                 <span className={`text-lg font-bold ${
                   match.result === 'win' ? 'text-green-700' :
                   match.result === 'walkover' ? 'text-blue-700' :
+                  match.result === 'tie' ? 'text-yellow-700' :
                   'text-red-700'
                 }`}>
-                  {match.result === 'win' ? 'WIN' : match.result === 'walkover' ? 'WALKOVER' : 'LOSS'}
+                  {match.result === 'win' ? 'WIN' : match.result === 'walkover' ? 'WALKOVER' : match.result === 'tie' ? 'TIE' : 'LOSS'}
                 </span>
                 <p className="text-sm text-gray-600 mt-0.5">
                   {format(new Date(match.date), 'EEEE, MMMM d, yyyy')}

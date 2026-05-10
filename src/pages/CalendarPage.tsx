@@ -180,7 +180,9 @@ export default function CalendarPage() {
                       <span
                         key={j}
                         className={`w-1.5 h-1.5 rounded-full ${
-                          m.result === 'win' || m.result === 'walkover' ? 'bg-green-500' : 'bg-red-500'
+                          m.result === 'win' || m.result === 'walkover' ? 'bg-green-500' :
+                          m.result === 'tie' ? 'bg-yellow-400' :
+                          'bg-red-500'
                         }`}
                       />
                     ))}
@@ -217,9 +219,11 @@ export default function CalendarPage() {
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-xs font-bold w-6 ${
-                        m.result === 'win' || m.result === 'walkover' ? 'text-green-700' : 'text-red-600'
+                        m.result === 'win' || m.result === 'walkover' ? 'text-green-700' :
+                        m.result === 'tie' ? 'text-yellow-600' :
+                        'text-red-600'
                       }`}>
-                        {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : 'L'}
+                        {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : m.result === 'tie' ? 'T' : 'L'}
                       </span>
                       <div className="min-w-0">
                         <span className="text-sm text-gray-800 font-medium truncate block">

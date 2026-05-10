@@ -323,7 +323,7 @@ export default function LogMatchPage() {
             ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
             : ''
           const resultStr = highConfidence.length === 1
-            ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
+            ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : highConfidence[0].result === 'tie' ? '= Tie' : '✗ Loss')
             : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
           let msg = savedCount === 1
@@ -391,7 +391,7 @@ export default function LogMatchPage() {
           const scoreStr = match.sets.length > 0
             ? match.sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')
             : 'W/O'
-          const resultStr = match.result === 'win' ? '✓ Win' : match.result === 'walkover' ? '✓ W/O' : '✗ Loss'
+          const resultStr = match.result === 'win' ? '✓ Win' : match.result === 'walkover' ? '✓ W/O' : match.result === 'tie' ? '= Tie' : '✗ Loss'
           let msg = `${resultStr} vs ${match.opponentNames.join(' & ')} ${scoreStr}`
           if (res.newPlayers.length > 0) msg += ` · New: ${res.newPlayers.join(', ')}`
           showToast(msg, 'success', res.matchId)
@@ -525,7 +525,7 @@ export default function LogMatchPage() {
           ? ` ${highConfidence[0].sets.map(s => `${s.myGames}-${s.opponentGames}`).join(', ')}`
           : ''
         const resultStr = highConfidence.length === 1
-          ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : '✗ Loss')
+          ? (highConfidence[0].result === 'win' ? '✓ Win' : highConfidence[0].result === 'walkover' ? '✓ W/O' : highConfidence[0].result === 'tie' ? '= Tie' : '✗ Loss')
           : `✓ ${savedCount} matches logged (${wins}W ${losses}L)`
 
         let msg = savedCount === 1
@@ -817,9 +817,9 @@ function ConfirmationCard({
         {/* Result */}
         <Field label="Result">
           <div className="flex gap-2">
-            {(['win', 'loss', 'walkover'] as const).map(r => (
+            {(['win', 'loss', 'tie', 'walkover'] as const).map(r => (
               <PillButton key={r} active={match.result === r} onClick={() => update({ result: r })}>
-                {r === 'win' ? 'Win' : r === 'loss' ? 'Loss' : 'Walkover'}
+                {r === 'win' ? 'Win' : r === 'loss' ? 'Loss' : r === 'tie' ? 'Tie' : 'Walkover'}
               </PillButton>
             ))}
           </div>
@@ -1179,9 +1179,9 @@ function ManualForm({
         {/* Result */}
         <Field label="Result">
           <div className="flex gap-2">
-            {(['win', 'loss', 'walkover'] as const).map(r => (
+            {(['win', 'loss', 'tie', 'walkover'] as const).map(r => (
               <PillButton key={r} active={form.result === r} onClick={() => update({ result: r })}>
-                {r === 'win' ? 'Win' : r === 'loss' ? 'Loss' : 'Walkover'}
+                {r === 'win' ? 'Win' : r === 'loss' ? 'Loss' : r === 'tie' ? 'Tie' : 'Walkover'}
               </PillButton>
             ))}
           </div>

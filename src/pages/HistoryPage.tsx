@@ -181,7 +181,7 @@ export default function HistoryPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <FilterSelect label="Result" value={filterResult} onChange={setFilterResult}
-              options={[{ value: 'win', label: 'Win' }, { value: 'loss', label: 'Loss' }, { value: 'walkover', label: 'Walkover' }]} />
+              options={[{ value: 'win', label: 'Win' }, { value: 'loss', label: 'Loss' }, { value: 'tie', label: 'Tie' }, { value: 'walkover', label: 'Walkover' }]} />
             <FilterSelect label="Surface" value={filterSurface} onChange={setFilterSurface}
               options={[{ value: 'hard', label: 'Hard' }, { value: 'clay', label: 'Clay' }, { value: 'grass', label: 'Grass' }, { value: 'indoor-hard', label: 'Indoor Hard' }, { value: 'indoor-clay', label: 'Indoor Clay' }]} />
             <FilterSelect label="Match Type" value={filterMatchType} onChange={setFilterMatchType}
@@ -318,9 +318,10 @@ function MatchCard({ match, onClick }: { match: MatchWithDetails; onClick: () =>
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
             match.result === 'win' ? 'bg-green-100 text-green-700' :
             match.result === 'walkover' ? 'bg-blue-100 text-blue-700' :
+            match.result === 'tie' ? 'bg-yellow-100 text-yellow-700' :
             'bg-red-100 text-red-700'
           }`}>
-            {match.result === 'win' ? 'W' : match.result === 'walkover' ? 'W/O' : 'L'}
+            {match.result === 'win' ? 'W' : match.result === 'walkover' ? 'W/O' : match.result === 'tie' ? 'T' : 'L'}
           </span>
           <span className="text-sm font-mono text-gray-700 text-right">{scoreStr}</span>
         </div>

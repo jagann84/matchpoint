@@ -17,6 +17,7 @@ export const MATCH_TYPES = [
 export const RESULTS = [
   { value: 'win', label: 'Win' },
   { value: 'loss', label: 'Loss' },
+  { value: 'tie', label: 'Tie' },
   { value: 'walkover', label: 'Walkover' },
 ] as const
 

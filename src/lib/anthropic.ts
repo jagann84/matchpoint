@@ -8,7 +8,7 @@ export interface ParsedMatch {
   location: string | null
   leagueName: string | null
   isCompetitive: boolean
-  result: 'win' | 'loss' | 'walkover'
+  result: 'win' | 'loss' | 'tie' | 'walkover'
   opponentNames: string[]
   partnerName: string | null
   sets: {
