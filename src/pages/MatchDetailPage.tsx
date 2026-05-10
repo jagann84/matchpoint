@@ -31,8 +31,13 @@ export default function MatchDetailPage() {
     is_competitive: false,
     sets: [] as { my_games: number; opponent_games: number }[],
     tags: [] as string[],
+    opponent_names: [] as string[],
+    partner_name: '',
   })
   const [newTag, setNewTag] = useState('')
+
+  // Players list — needed for autocomplete and rename-vs-reassign logic
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>([])
 
   const loadMatch = useCallback(async () => {
     if (!id) return
@@ -41,7 +46,15 @@ export default function MatchDetailPage() {
     setLoading(false)
   }, [id])
 
-  useEffect(() => { loadMatch() }, [loadMatch])
+  useEffect(() => {
+    loadMatch()
+    // Load players for autocomplete + rename-vs-reassign logic in edit mode.
+    // We only need this once per page load — player names rarely change between
+    // the time the page opens and the user hits Save.
+    supabase.from('players').select('id, name').then(({ data }) => {
+      if (data) setPlayers(data)
+    })
+  }, [loadMatch])
 
   const startEditing = () => {
     if (!match) return
@@ -55,6 +68,8 @@ export default function MatchDetailPage() {
       is_competitive: match.is_competitive,
       sets: match.sets.map(s => ({ my_games: s.my_games, opponent_games: s.opponent_games })),
       tags: [...match.tags],
+      opponent_names: match.opponents.map(o => o.name),
+      partner_name: match.partner_name || '',
     })
     setEditing(true)
     setConfirmDelete(false)
@@ -140,6 +155,49 @@ export default function MatchDetailPage() {
       await supabase.from('match_tags').insert(
         editForm.tags.map(tag => ({ match_id: id, tag_id: tag }))
       )
+    }
+
+    // Update opponent names.
+    // For each opponent whose name changed, decide:
+    //   • If the new name matches an existing player → reassign the
+    //     match_opponents row to that player (the opponent was mis-attributed).
+    //   • Otherwise → rename the player record itself, which fixes the typo
+    //     across every match they appear in.
+    for (let i = 0; i < match.opponents.length; i++) {
+      const newName = editForm.opponent_names[i]?.trim()
+      const original = match.opponents[i]
+      if (!newName || newName === original.name) continue
+
+      const existing = players.find(
+        p => p.name.toLowerCase() === newName.toLowerCase() && p.id !== original.id
+      )
+      if (existing) {
+        // Reassign: point this match's opponent slot to the existing player
+        await supabase.from('match_opponents')
+          .update({ player_id: existing.id })
+          .eq('match_id', id)
+          .eq('player_id', original.id)
+      } else {
+        // Rename: update the player record globally
+        await supabase.from('players').update({ name: newName }).eq('id', original.id)
+      }
+    }
+
+    // Update partner name (doubles matches only)
+    if (match.partner_id) {
+      const newPartnerName = editForm.partner_name.trim()
+      if (newPartnerName && newPartnerName !== match.partner_name) {
+        const existing = players.find(
+          p => p.name.toLowerCase() === newPartnerName.toLowerCase() && p.id !== match.partner_id
+        )
+        if (existing) {
+          // Reassign partner link on the match row
+          await supabase.from('matches').update({ partner_id: existing.id }).eq('id', id)
+        } else {
+          // Rename the partner's player record
+          await supabase.from('players').update({ name: newPartnerName }).eq('id', match.partner_id)
+        }
+      }
     }
 
     showToast('Match updated', 'success')
@@ -252,6 +310,46 @@ export default function MatchDetailPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </EditField>
+
+          {/* Opponent name(s) */}
+          <EditField label={match.opponents.length > 1 ? 'Opponents' : 'Opponent'}>
+            <div className="space-y-2">
+              {editForm.opponent_names.map((name, i) => (
+                <input
+                  key={i}
+                  type="text"
+                  value={name}
+                  onChange={e => {
+                    const updated = [...editForm.opponent_names]
+                    updated[i] = e.target.value
+                    setEditForm(prev => ({ ...prev, opponent_names: updated }))
+                  }}
+                  list="edit-player-suggestions"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              ))}
+              <datalist id="edit-player-suggestions">
+                {players.map(p => <option key={p.id} value={p.name} />)}
+              </datalist>
+              <p className="text-xs text-gray-400">
+                Matching an existing player name reassigns this match to them.
+                A new name renames them across all matches.
+              </p>
+            </div>
+          </EditField>
+
+          {/* Partner name (doubles only) */}
+          {match.partner_id && (
+            <EditField label="Partner">
+              <input
+                type="text"
+                value={editForm.partner_name}
+                onChange={e => setEditForm(prev => ({ ...prev, partner_name: e.target.value }))}
+                list="edit-player-suggestions"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </EditField>
+          )}
 
           {/* Result */}
           <EditField label="Result">
