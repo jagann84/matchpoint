@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
+import { parseLocalDate } from '../lib/dates'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, X, Check, Loader2, Search,
@@ -526,7 +527,7 @@ export default function PlayersPage() {
                             </span>
                           )}
                           {s.lastPlayed && (
-                            <span>Last: {format(new Date(s.lastPlayed), 'MMM d, yyyy')}</span>
+                            <span>Last: {format(parseLocalDate(s.lastPlayed), 'MMM d, yyyy')}</span>
                           )}
                         </div>
                       ) : (

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchMatchesPaginated, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
+import { parseLocalDate } from '../lib/dates'
 import { useNavigate } from 'react-router-dom'
 import {
   Loader2, Filter, ChevronDown, ChevronUp, List, Search, X,
@@ -275,7 +276,7 @@ function MatchCard({ match, onClick }: { match: MatchWithDetails; onClick: () =>
         <div className="flex-1 min-w-0">
           {/* Date + opponent */}
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs text-gray-500">{format(new Date(match.date), 'MMM d, yyyy')}</span>
+            <span className="text-xs text-gray-500">{format(parseLocalDate(match.date), 'MMM d, yyyy')}</span>
             {match.league_name && (
               <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full truncate max-w-[120px]">
                 {match.league_name}

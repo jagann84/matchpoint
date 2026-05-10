@@ -8,7 +8,7 @@ import {
   ArrowLeft, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
 } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, RESULTS, isSurface, isMatchType, isResult } from '../lib/constants'
-import { localToday } from '../lib/dates'
+import { localToday, parseLocalDate } from '../lib/dates'
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -530,7 +530,7 @@ export default function MatchDetailPage() {
                   {match.result === 'win' ? 'WIN' : match.result === 'walkover' ? 'WALKOVER' : match.result === 'tie' ? 'TIE' : 'LOSS'}
                 </span>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  {format(new Date(match.date), 'EEEE, MMMM d, yyyy')}
+                  {format(parseLocalDate(match.date), 'EEEE, MMMM d, yyyy')}
                 </p>
               </div>
               <span className="text-2xl font-mono font-bold text-gray-800">{scoreStr}</span>

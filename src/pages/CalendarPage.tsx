@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQueries'
 import { format } from 'date-fns'
+import { parseLocalDate } from '../lib/dates'
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -201,7 +202,7 @@ export default function CalendarPage() {
       {selectedDate && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">
-            {format(new Date(selectedDate + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}
+            {format(parseLocalDate(selectedDate), 'EEEE, MMMM d, yyyy')}
           </h3>
           {selectedMatches.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No matches on this day.</p>

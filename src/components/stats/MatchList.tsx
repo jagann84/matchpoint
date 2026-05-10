@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import type { MatchWithDetails } from '../../lib/matchQueries'
+import { parseLocalDate } from '../../lib/dates'
 
 const PAGE_SIZE = 20
 
@@ -33,7 +34,7 @@ export default function MatchList({ matches, onMatchClick, showPartner }: MatchL
               {m.result === 'win' ? 'W' : m.result === 'walkover' ? 'W/O' : m.result === 'tie' ? 'T' : 'L'}
             </span>
             <span className="text-xs text-gray-500">
-              {format(new Date(m.date), 'MMM d, yyyy')}
+              {format(parseLocalDate(m.date), 'MMM d, yyyy')}
             </span>
             {showPartner && (
               <span className="text-xs text-gray-500 truncate">

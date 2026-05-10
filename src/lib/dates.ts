@@ -16,3 +16,15 @@ export function localToday(): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+/**
+ * Parse a YYYY-MM-DD date string as a local-timezone Date object.
+ *
+ * `new Date('2026-05-08')` is parsed as UTC midnight, which rolls back
+ * to May 7 in any timezone west of UTC. Appending T12:00:00 anchors the
+ * parse at local noon — safe for every timezone on Earth (UTC−12…+14).
+ * Use this any time you need a Date object just for display formatting.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  return new Date(dateStr + 'T12:00:00')
+}

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
+import { parseLocalDate } from '../lib/dates'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import RecordSummary from '../components/stats/RecordSummary'
 import BreakdownList from '../components/stats/BreakdownList'
@@ -62,7 +63,7 @@ export default function HeadToHeadPage() {
     return last10.map((m, i) => ({
       match: i + 1,
       result: (m.result === 'win' || m.result === 'walkover' ? 'W' : 'L') as 'W' | 'L',
-      label: format(new Date(m.date), 'M/d'),
+      label: format(parseLocalDate(m.date), 'M/d'),
     }))
   }, [opponentMatches])
 

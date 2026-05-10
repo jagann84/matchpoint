@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchMatchesWithDetails, type MatchWithDetails } from '../lib/matchQueries'
 import { supabase } from '../lib/supabase'
 import { format } from 'date-fns'
+import { parseLocalDate } from '../lib/dates'
 import { Loader2, TrendingUp, TrendingDown, Minus, Trophy, Target, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import ErrorRetry from '../components/ErrorRetry'
 import {
@@ -183,12 +184,12 @@ export default function DashboardPage() {
 
     // Sort oldest first for chronological bucketing
     const sorted = [...allMatches].reverse()
-    const firstDate = new Date(sorted[0].date)
+    const firstDate = parseLocalDate(sorted[0].date)
 
     // Bucket into 4-week windows
     const windows: { week: number; label: string; wins: number; total: number }[] = []
     for (const m of sorted) {
-      const daysSinceFirst = Math.floor((new Date(m.date).getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
+      const daysSinceFirst = Math.floor((parseLocalDate(m.date).getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
       const windowIndex = Math.floor(daysSinceFirst / 28)
       if (!windows[windowIndex]) {
         const windowStart = new Date(firstDate.getTime() + windowIndex * 28 * 24 * 60 * 60 * 1000)
@@ -397,7 +398,7 @@ export default function DashboardPage() {
                       {m.result === 'walkover' ? 'W/O' : m.sets.map(s => `${s.my_games}-${s.opponent_games}`).join(', ')}
                     </span>
                     <span className="text-[10px] text-gray-500">
-                      {format(new Date(m.date), 'M/d')}
+                      {format(parseLocalDate(m.date), 'M/d')}
                     </span>
                   </div>
                 </button>
