@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, RESULTS, isSurface, isMatchType, isResult } from '../lib/constants'
 import { localToday, parseLocalDate } from '../lib/dates'
+import Combobox from '../components/Combobox'
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -315,22 +316,18 @@ export default function MatchDetailPage() {
           <EditField label={match.opponents.length > 1 ? 'Opponents' : 'Opponent'}>
             <div className="space-y-2">
               {editForm.opponent_names.map((name, i) => (
-                <input
+                <Combobox
                   key={i}
-                  type="text"
                   value={name}
-                  onChange={e => {
+                  onChange={val => {
                     const updated = [...editForm.opponent_names]
-                    updated[i] = e.target.value
+                    updated[i] = val
                     setEditForm(prev => ({ ...prev, opponent_names: updated }))
                   }}
-                  list="edit-player-suggestions"
+                  options={players.map(p => p.name)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               ))}
-              <datalist id="edit-player-suggestions">
-                {players.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
               <p className="text-xs text-gray-400">
                 Matching an existing player name reassigns this match to them.
                 A new name renames them across all matches.
@@ -341,11 +338,10 @@ export default function MatchDetailPage() {
           {/* Partner name (doubles only) */}
           {match.partner_id && (
             <EditField label="Partner">
-              <input
-                type="text"
+              <Combobox
                 value={editForm.partner_name}
-                onChange={e => setEditForm(prev => ({ ...prev, partner_name: e.target.value }))}
-                list="edit-player-suggestions"
+                onChange={val => setEditForm(prev => ({ ...prev, partner_name: val }))}
+                options={players.map(p => p.name)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </EditField>

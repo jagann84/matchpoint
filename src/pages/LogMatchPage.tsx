@@ -7,6 +7,7 @@ import { detectAmbiguousNames, type AmbiguousName } from '../lib/playerMatching'
 import PlayerDisambiguation from '../components/PlayerDisambiguation'
 import { showToast } from '../components/Toast'
 import PostMatchInsightsCard from '../components/PostMatchInsightsCard'
+import Combobox from '../components/Combobox'
 import { Loader2, AlertTriangle, Sparkles, ChevronDown, ChevronUp, Plus, X, Minus } from 'lucide-react'
 import { SURFACES, MATCH_TYPES, type Surface, type MatchType } from '../lib/constants'
 import { logEvent, categorizeError, toMatchTypeDim, toSurfaceDim, toFormatDim } from '../lib/analytics'
@@ -124,20 +125,35 @@ export default function LogMatchPage() {
   const loadContext = useCallback(async () => {
     if (!user) return
 
-    const [settingsRes, playersRes, leaguesRes] = await Promise.all([
+    const [settingsRes, playersRes, leaguesRes, locationsRes] = await Promise.all([
       supabase.from('user_settings').select('*').eq('user_id', user.id).single(),
       supabase.from('players').select('id, name').eq('user_id', user.id).order('name'),
       supabase.from('leagues').select('id, name').eq('user_id', user.id).order('name'),
+      // Fetch every distinct location the user has ever logged — more useful
+      // than the static custom_locations setting which required manual entry.
+      supabase.from('matches')
+        .select('location')
+        .eq('user_id', user.id)
+        .not('location', 'is', null)
+        .order('location'),
     ])
 
     if (settingsRes.data) {
       setHasApiKey(!!settingsRes.data.anthropic_api_key)
       setDefaultSurface(settingsRes.data.default_surface || 'hard')
       setDefaultMatchType(settingsRes.data.default_match_type || 'friendly')
-      setSavedLocations(settingsRes.data.custom_locations || [])
     }
     if (playersRes.data) setPlayers(playersRes.data)
     if (leaguesRes.data) setLeagues(leaguesRes.data)
+
+    // Deduplicate and sort locations from match history
+    if (locationsRes.data) {
+      const unique = [...new Set(
+        locationsRes.data.map((r: { location: string }) => r.location).filter(Boolean)
+      )].sort() as string[]
+      setSavedLocations(unique)
+    }
+
     setContextLoaded(true)
   }, [user])
 
@@ -649,6 +665,7 @@ export default function LogMatchPage() {
           total={pendingMatches.length}
           players={players}
           leagues={leagues}
+          savedLocations={savedLocations}
           onSave={handleConfirmSave}
           onCancel={handleConfirmCancel}
         />
@@ -766,6 +783,7 @@ function ConfirmationCard({
   total,
   players,
   leagues,
+  savedLocations,
   onSave,
   onCancel,
 }: {
@@ -774,6 +792,7 @@ function ConfirmationCard({
   total: number
   players: { id: string; name: string }[]
   leagues: { id: string; name: string }[]
+  savedLocations: string[]
   onSave: (match: ParsedMatch) => void
   onCancel: () => void
 }) {
@@ -876,36 +895,33 @@ function ConfirmationCard({
         <Field label={match.format === 'doubles' ? 'Opponents' : 'Opponent'}>
           {match.opponentNames.map((name, i) => (
             <div key={i} className="flex items-center gap-2 mb-1">
-              <input
-                type="text"
+              <Combobox
                 value={name}
-                onChange={e => {
+                onChange={val => {
                   const updated = [...match.opponentNames]
-                  updated[i] = e.target.value
+                  updated[i] = val
                   update({ opponentNames: updated })
                 }}
+                options={players.map(p => p.name)}
+                placeholder="Opponent name"
                 className="input-field flex-1"
-                list="player-suggestions"
               />
               {!players.find(p => p.name.toLowerCase() === name.toLowerCase()) && name && (
                 <span className="text-xs text-amber-600 whitespace-nowrap">✨ New</span>
               )}
             </div>
           ))}
-          <datalist id="player-suggestions">
-            {players.map(p => <option key={p.id} value={p.name} />)}
-          </datalist>
         </Field>
 
         {/* Partner (doubles) */}
         {match.format === 'doubles' && (
           <Field label="Partner">
-            <input
-              type="text"
+            <Combobox
               value={match.partnerName || ''}
-              onChange={e => update({ partnerName: e.target.value || null })}
-              className="input-field"
-              list="player-suggestions"
+              onChange={val => update({ partnerName: val || null })}
+              options={players.map(p => p.name)}
+              placeholder="Partner name"
+              className="input-field w-full"
             />
           </Field>
         )}
@@ -948,31 +964,27 @@ function ConfirmationCard({
         {/* League */}
         {(match.matchType === 'league' || match.matchType === 'tournament') && (
           <Field label="League / Tournament">
-            <input
-              type="text"
+            <Combobox
               value={match.leagueName || ''}
-              onChange={e => update({ leagueName: e.target.value || null })}
-              className="input-field"
-              list="league-suggestions"
+              onChange={val => update({ leagueName: val || null })}
+              options={leagues.map(l => l.name)}
               placeholder="Select or type new..."
+              className="input-field w-full"
             />
             {match.leagueName && !leagues.find(l => l.name.toLowerCase() === match.leagueName!.toLowerCase()) && (
               <span className="text-xs text-amber-600 mt-1 block">✨ New league</span>
             )}
-            <datalist id="league-suggestions">
-              {leagues.map(l => <option key={l.id} value={l.name} />)}
-            </datalist>
           </Field>
         )}
 
         {/* Location */}
         <Field label="Location">
-          <input
-            type="text"
+          <Combobox
             value={match.location || ''}
-            onChange={e => update({ location: e.target.value || null })}
-            className="input-field"
+            onChange={val => update({ location: val || null })}
+            options={savedLocations}
             placeholder="e.g., Reston Community Courts"
+            className="input-field w-full"
           />
         </Field>
 
@@ -1088,17 +1100,13 @@ function ManualForm({
         {/* League */}
         {(form.matchType === 'league' || form.matchType === 'tournament') && (
           <Field label="League / Tournament">
-            <input
-              type="text"
+            <Combobox
               value={form.leagueName || ''}
-              onChange={e => update({ leagueName: e.target.value || null })}
-              className="input-field"
-              list="league-list"
+              onChange={val => update({ leagueName: val || null })}
+              options={leagues.map(l => l.name)}
               placeholder="Select or add new..."
+              className="input-field w-full"
             />
-            <datalist id="league-list">
-              {leagues.map(l => <option key={l.id} value={l.name} />)}
-            </datalist>
           </Field>
         )}
 
@@ -1127,51 +1135,42 @@ function ManualForm({
 
         {/* Location */}
         <Field label="Location">
-          <input
-            type="text"
+          <Combobox
             value={form.location || ''}
-            onChange={e => update({ location: e.target.value || null })}
-            className="input-field"
-            list="location-list"
+            onChange={val => update({ location: val || null })}
+            options={savedLocations}
             placeholder="e.g., Reston Community Courts"
+            className="input-field w-full"
           />
-          <datalist id="location-list">
-            {savedLocations.map(l => <option key={l} value={l} />)}
-          </datalist>
         </Field>
 
         {/* Opponent(s) */}
         <Field label={form.format === 'doubles' ? 'Opponents' : 'Opponent'}>
           {form.opponentNames.map((name, i) => (
-            <input
+            <Combobox
               key={i}
-              type="text"
               value={name}
-              onChange={e => {
+              onChange={val => {
                 const updated = [...form.opponentNames]
-                updated[i] = e.target.value
+                updated[i] = val
                 update({ opponentNames: updated })
               }}
-              className="input-field mb-1"
-              list="player-list"
-              placeholder={`Opponent ${form.format === 'doubles' ? i + 1 : ''}`}
+              options={players.map(p => p.name)}
+              placeholder={`Opponent${form.format === 'doubles' ? ` ${i + 1}` : ''}`}
+              className="input-field w-full mb-1"
             />
           ))}
-          <datalist id="player-list">
-            {players.map(p => <option key={p.id} value={p.name} />)}
-          </datalist>
         </Field>
 
         {/* Partner */}
         {form.format === 'doubles' && (
           <Field label="Partner">
-            <input
-              type="text"
+            <Combobox
               value={form.partnerName || ''}
-              onChange={e => update({ partnerName: e.target.value || null })}
-              className="input-field"
-              list="player-list"
+              onChange={val => update({ partnerName: val || null })}
+              options={players.map(p => p.name)}
               placeholder="Your doubles partner"
+              className="input-field w-full"
             />
           </Field>
         )}
