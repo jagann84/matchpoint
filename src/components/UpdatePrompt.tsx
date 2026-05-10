@@ -40,14 +40,21 @@ export default function UpdatePrompt() {
     navigator.serviceWorker.getRegistration().then((reg) => {
       if (!reg || cancelled) return
 
-      // Case A: a waiting worker already exists when the component
-      // mounts (e.g. user hard-navigated after a deploy).
+      // Case A: a waiting worker already exists when the component mounts
+      // (e.g. user navigated to the page after a deploy completed).
       promoteWaiting(reg)
 
+      // Case A½: a worker is *currently installing* when we mount —
+      // updatefound already fired so Case B won't catch it. Attach a
+      // statechange listener directly to the in-progress installer.
+      if (reg.installing) {
+        const installing = reg.installing
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed') promoteWaiting(reg)
+        })
+      }
+
       // Case B: a new worker starts installing while the app is open.
-      // Watch its state transitions and promote it once it reaches
-      // 'installed' (which is the waiting state when there's already
-      // a controller).
       reg.addEventListener('updatefound', () => {
         const installing = reg.installing
         if (!installing) return

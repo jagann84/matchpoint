@@ -98,7 +98,28 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // For other assets: stale-while-revalidate
+  // JS and CSS bundles: network-first so a refresh always picks up new
+  // code. Fall back to cache only when offline. Using stale-while-revalidate
+  // here would serve the old bundle immediately and silently update for
+  // "next time", meaning users need two refreshes to see a new deploy.
+  const url = new URL(request.url)
+  const isBundle = url.pathname.startsWith('/assets/') &&
+    (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))
+
+  if (isBundle) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response.ok) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+        }
+        return response
+      }).catch(() => caches.match(request))
+    )
+    return
+  }
+
+  // Other static assets (images, fonts, icons): stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request).then((response) => {
